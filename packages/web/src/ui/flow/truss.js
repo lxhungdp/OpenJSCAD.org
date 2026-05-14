@@ -26,6 +26,10 @@ const reduceTrussOp = (state, op) => {
       return reducers.setSectionH(state, op.value)
     case 'setSectionRadius':
       return reducers.setSectionRadius(state, op.value)
+    case 'setSectionTf':
+      return reducers.setSectionTf(state, op.value)
+    case 'setSectionTw':
+      return reducers.setSectionTw(state, op.value)
     default:
       return undefined
   }

@@ -9,7 +9,9 @@ const defaultTruss = () => ({
   sectionType: 'rect',
   sectionB: 2,
   sectionH: 2,
-  sectionRadius: 1
+  sectionRadius: 1,
+  sectionTf: 0.25,
+  sectionTw: 0.2
 })
 
 const readNodeRow = (tr, id) => {
@@ -116,6 +118,14 @@ const attachTrussHandlers = (root, trussCtl) => {
   if (rInp) {
     rInp.onchange = () => cb({ op: 'setSectionRadius', value: rInp.value })
   }
+  const tfInp = root.querySelector('#trussSectionTf')
+  if (tfInp) {
+    tfInp.onchange = () => cb({ op: 'setSectionTf', value: tfInp.value })
+  }
+  const twInp = root.querySelector('#trussSectionTw')
+  if (twInp) {
+    twInp.onchange = () => cb({ op: 'setSectionTw', value: twInp.value })
+  }
 }
 
 const trussPanel = (state, i18n, trussCallbacktoStream) => {
@@ -144,6 +154,10 @@ const trussPanel = (state, i18n, trussCallbacktoStream) => {
   `)
 
   const st = t.sectionType || 'rect'
+  const showBrow = st === 'rect' || st === 'square' || st === 'i'
+  const showHrow = st === 'rect' || st === 'i'
+  const bLabel = st === 'i' ? i18n`B (overall width)` : i18n`b (width)`
+  const hLabel = st === 'i' ? i18n`H (overall height)` : i18n`h (depth)`
 
   const section = html`
   <section id="truss" class="popup-menu truss-panel" style="visibility:${state.activeTool === 'truss' ? 'visible' : 'hidden'}; color:${secColor}">
@@ -162,19 +176,28 @@ const trussPanel = (state, i18n, trussCallbacktoStream) => {
           <option value="rect" selected=${st === 'rect'}>${i18n`Rectangle (b × h)`}</option>
           <option value="square" selected=${st === 'square'}>${i18n`Square (b)`}</option>
           <option value="circle" selected=${st === 'circle'}>${i18n`Circle (radius)`}</option>
+          <option value="i" selected=${st === 'i'}>${i18n`I-beam (H × B, tf, tw)`}</option>
         </select>
       </div>
-      <div class="truss-section-row" style="display:${st === 'circle' ? 'none' : 'flex'}">
-        <label for="trussSectionB">${i18n`b (width)`}</label>
+      <div class="truss-section-row" style="display:${showBrow ? 'flex' : 'none'}">
+        <label for="trussSectionB">${bLabel}</label>
         <input type="number" step="any" id="trussSectionB" min="0.001" value="${String(t.sectionB != null ? t.sectionB : 2)}" />
       </div>
-      <div class="truss-section-row" style="display:${st === 'rect' ? 'flex' : 'none'}">
-        <label for="trussSectionH">${i18n`h (depth)`}</label>
+      <div class="truss-section-row" style="display:${showHrow ? 'flex' : 'none'}">
+        <label for="trussSectionH">${hLabel}</label>
         <input type="number" step="any" id="trussSectionH" min="0.001" value="${String(t.sectionH != null ? t.sectionH : 2)}" />
       </div>
       <div class="truss-section-row" style="display:${st === 'circle' ? 'flex' : 'none'}">
         <label for="trussSectionRadius">${i18n`Radius`}</label>
         <input type="number" step="any" id="trussSectionRadius" min="0.001" value="${String(t.sectionRadius != null ? t.sectionRadius : 1)}" />
+      </div>
+      <div class="truss-section-row" style="display:${st === 'i' ? 'flex' : 'none'}">
+        <label for="trussSectionTf">${i18n`tf (flange thickness)`}</label>
+        <input type="number" step="any" id="trussSectionTf" min="0.001" value="${String(t.sectionTf != null ? t.sectionTf : 0.25)}" />
+      </div>
+      <div class="truss-section-row" style="display:${st === 'i' ? 'flex' : 'none'}">
+        <label for="trussSectionTw">${i18n`tw (web thickness)`}</label>
+        <input type="number" step="any" id="trussSectionTw" min="0.001" value="${String(t.sectionTw != null ? t.sectionTw : 0.2)}" />
       </div>
     </fieldset>
 

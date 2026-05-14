@@ -4,10 +4,12 @@ const defaultTruss = () => ({
   nextNodeId: 1,
   nextElementId: 1,
   show3dMembers: false,
-  sectionType: 'rect', // 'rect' | 'square' | 'circle'
+  sectionType: 'rect', // 'rect' | 'square' | 'circle' | 'i'
   sectionB: 2,
   sectionH: 2,
-  sectionRadius: 1
+  sectionRadius: 1,
+  sectionTf: 0.25,
+  sectionTw: 0.2
 })
 
 const ensure = (state) => {
@@ -75,7 +77,7 @@ const updateElement = (state, { id, startId, endId }) => {
 const setShow3dMembers = (state, value) => withTruss(state, { show3dMembers: !!value })
 
 const setSectionType = (state, value) => {
-  const v = (value === 'square' || value === 'circle' || value === 'rect') ? value : 'rect'
+  const v = (value === 'square' || value === 'circle' || value === 'rect' || value === 'i') ? value : 'rect'
   return withTruss(state, { sectionType: v })
 }
 
@@ -94,6 +96,16 @@ const setSectionRadius = (state, value) => {
   return withTruss(state, { sectionRadius: Math.max(1e-3, n) })
 }
 
+const setSectionTf = (state, value) => {
+  const n = isFinite(Number(value)) ? Number(value) : 0.25
+  return withTruss(state, { sectionTf: Math.max(1e-3, n) })
+}
+
+const setSectionTw = (state, value) => {
+  const n = isFinite(Number(value)) ? Number(value) : 0.2
+  return withTruss(state, { sectionTw: Math.max(1e-3, n) })
+}
+
 module.exports = {
   addNode,
   removeNode,
@@ -105,5 +117,7 @@ module.exports = {
   setSectionType,
   setSectionB,
   setSectionH,
-  setSectionRadius
+  setSectionRadius,
+  setSectionTf,
+  setSectionTw
 }

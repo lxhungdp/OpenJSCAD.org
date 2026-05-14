@@ -193,7 +193,9 @@ const viewer = (state, i18n) => {
         t: tr.sectionType,
         b: tr.sectionB,
         h: tr.sectionH,
-        r: tr.sectionRadius
+        r: tr.sectionRadius,
+        tf: tr.sectionTf,
+        tw: tr.sectionTw
       })
     }
 

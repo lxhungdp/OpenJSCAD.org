@@ -78,5 +78,11 @@
   "Circle (radius)": "Circle (radius)",
   "b (width)": "b (width)",
   "h (depth)": "h (depth)",
-  "Radius": "Radius"
+  "Radius": "Radius",
+
+  "I-beam (H × B, tf, tw)": "I-beam (H × B, tf, tw)",
+  "B (overall width)": "B (overall width)",
+  "H (overall height)": "H (overall height)",
+  "tf (flange thickness)": "tf (flange thickness)",
+  "tw (web thickness)": "tw (web thickness)"
 }

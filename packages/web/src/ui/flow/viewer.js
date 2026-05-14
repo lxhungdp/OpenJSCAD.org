@@ -31,7 +31,9 @@ const reducers = {
       sectionType: 'rect',
       sectionB: 2,
       sectionH: 2,
-      sectionRadius: 1
+      sectionRadius: 1,
+      sectionTf: 0.25,
+      sectionTw: 0.2
     }
     return { viewer, truss }
   },

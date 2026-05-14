@@ -208,6 +208,97 @@ span#paramsControls {
   width: 100%;
 }
 
+#viewerStack {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
+}
+
+svg.truss-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+section.truss-panel {
+  background-color: rgba(255, 255, 255, 0.92);
+  max-width: min(420px, 90vw);
+}
+
+section.truss-panel .truss-hint {
+  font-size: 0.85em;
+  margin: 0.5em 0 1em;
+  opacity: 0.85;
+}
+
+section.truss-panel table.truss-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5em;
+  font-size: 0.9em;
+}
+
+section.truss-panel table.truss-table th,
+section.truss-panel table.truss-table td {
+  padding: 2px 4px;
+  text-align: left;
+}
+
+section.truss-panel table.truss-table input {
+  width: 4.5em;
+  max-width: 100%;
+}
+
+section.truss-panel h4 {
+  margin: 0.75em 0 0.25em;
+}
+
+section.truss-panel .truss-fieldset {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 0.75em;
+}
+
+section.truss-panel .truss-fieldset legend h4 {
+  margin: 0;
+  font-size: 1em;
+}
+
+section.truss-panel .truss-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+section.truss-panel .truss-section-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+section.truss-panel .truss-section-row label {
+  min-width: 5.5em;
+}
+
+section.truss-panel .truss-section-row input,
+section.truss-panel .truss-section-row select {
+  flex: 1;
+  min-width: 5em;
+}
+
 h3 {
   margin: auto;
 }

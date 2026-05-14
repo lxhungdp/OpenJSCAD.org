@@ -1,6 +1,6 @@
 const html = require('nanohtml')
 
-const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream) => {
+const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, trussCallbacktoStream) => {
   const i18nFake = (x) => x
   i18nFake.translate = (x) => x
   i18n = i18n || i18nFake
@@ -40,12 +40,14 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream) => {
     ${toolBar}
     ${viewerControls}
 
-    <!-- bare bones essentials -->
     <!--Status information/errors-->
     ${status}
 
-    <!--Viewer-->
-    ${viewer}
+    <!--Viewer + screen-space truss overlay-->
+    <div id="viewerStack">
+      ${viewer}
+      <svg id="trussOverlay" xmlns="http://www.w3.org/2000/svg" class="truss-overlay" aria-hidden="true"></svg>
+    </div>
 
     <!--Params-->
     ${parameters}
@@ -55,6 +57,8 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream) => {
     ${state.activeTool === 'editor' ? editor : ''}
     <!-- Help Popup -->
     ${help}
+    <!-- Truss editor -->
+    ${require('./trussPanel')(state, i18n, trussCallbacktoStream)}
 
   </div>
   `

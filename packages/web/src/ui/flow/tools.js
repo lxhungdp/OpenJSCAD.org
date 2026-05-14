@@ -7,6 +7,7 @@ const actions = ({ sources }) => {
     sources.dom.select('#toggleOptions').events('click').map((event) => 'options'),
     sources.dom.select('#toggleEditor').events('click').map((event) => 'editor'),
     sources.dom.select('#toggleHelp').events('click').map((event) => 'help'),
+    sources.dom.select('#toggleTruss').events('click').map((event) => 'truss'),
     sources.dom.select('.example').events('mouseup').map((event) => undefined)
   ])
     .thru(withLatestFrom((state, tool) => {

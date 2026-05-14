@@ -46,6 +46,7 @@
     "codemirror": "5.65.2",
     "es2015-i18n-tag": "1.6.1",
     "file-saver": "2.0.5",
+    "gl-mat4": "1.2.0",
     "is-electron": "2.2.1",
     "morphdom": "2.6.1",
     "most": "1.8.0",

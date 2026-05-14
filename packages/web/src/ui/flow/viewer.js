@@ -22,7 +22,18 @@ const reducers = {
         position: ''
       }
     }
-    return { viewer }
+    const truss = {
+      nodes: [],
+      elements: [],
+      nextNodeId: 1,
+      nextElementId: 1,
+      show3dMembers: false,
+      sectionType: 'rect',
+      sectionB: 2,
+      sectionH: 2,
+      sectionRadius: 1
+    }
+    return { viewer, truss }
   },
 
   toggleAutoRotate: (state, autoRotate) => {

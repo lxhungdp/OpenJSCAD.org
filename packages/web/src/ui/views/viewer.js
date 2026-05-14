@@ -7,6 +7,8 @@ const { pointerGestures } = require('../../most-gestures')
 const { prepareRender, drawCommands, cameras, entitiesFromSolids } = rendererStuff
 const perspectiveCamera = cameras.perspective
 const orbitControls = rendererStuff.controls.orbit
+const syncTrussOverlay = require('./trussOverlaySync')
+const trussMembersToSolids = require('../../core/trussMembersToSolids')
 
 // params
 const rotateSpeed = 0.002
@@ -47,9 +49,14 @@ const axes = { // command to draw the axes
 let prevEntities = []
 let prevSolids
 let prevColor = []
+let latestTrussState = { nodes: [], elements: [] }
+let prevTrussEntities = []
+let prevTrussKey = ''
+let prevTrussMeshColorKey = ''
 
 const viewer = (state, i18n) => {
   const el = html`<canvas id='renderTarget'> </canvas>`
+  latestTrussState = state.truss || latestTrussState
 
   if (!render) {
     const options = setup(el)
@@ -114,7 +121,8 @@ const viewer = (state, i18n) => {
 
       if (zoomToFit) {
         controls.zoomToFit.tightness = 1.5
-        const updated = orbitControls.zoomToFit({ controls, camera, entities: prevEntities })
+        const zoomFitEntities = [...prevEntities, ...prevTrussEntities]
+        const updated = orbitControls.zoomToFit({ controls, camera, entities: zoomFitEntities })
         controls = { ...controls, ...updated.controls }
         zoomToFit = false
         updateView = true
@@ -137,13 +145,21 @@ const viewer = (state, i18n) => {
         render(viewerOptions)
       }
 
+      const stack = el.parentElement
+      const svg = stack && stack.querySelector('#trussOverlay')
+      if (svg) {
+        syncTrussOverlay(svg, latestTrussState, camera, el)
+      }
+
       window.requestAnimationFrame(updateAndRender)
     }
     window.requestAnimationFrame(updateAndRender)
   } else {
     // only generate entities when the solids change
     // themes, options, etc also change the viewer state
-    const solids = state.design.solids.filter((solid) => solid && (solid instanceof Object))
+    const designSolids = state.design.solids.filter((solid) => solid && (solid instanceof Object))
+    // Truss mode: hide all design geometry so only grid/axes + screen-space truss overlay show
+    const solids = state.activeTool === 'truss' ? [] : designSolids
     if (prevSolids) {
       const theme = state.themes.themeSettings.viewer
       const color = theme.rendering.meshColor
@@ -157,6 +173,46 @@ const viewer = (state, i18n) => {
       }
     }
     prevSolids = solids
+
+    let meshColor
+    let truss3d = false
+    if (state.themes && state.themes.themeSettings) {
+      meshColor = state.themes.themeSettings.viewer.rendering.meshColor
+      truss3d =
+        state.activeTool === 'truss' &&
+        state.truss &&
+        state.truss.show3dMembers
+    }
+
+    let trussKey = ''
+    if (truss3d) {
+      const tr = state.truss
+      trussKey = JSON.stringify({
+        n: tr.nodes,
+        e: tr.elements,
+        t: tr.sectionType,
+        b: tr.sectionB,
+        h: tr.sectionH,
+        r: tr.sectionRadius
+      })
+    }
+
+    if (truss3d && meshColor !== undefined) {
+      const meshColorKey = JSON.stringify(meshColor)
+      if (trussKey !== prevTrussKey || meshColorKey !== prevTrussMeshColorKey) {
+        const memberSolids = trussMembersToSolids(state.truss)
+        prevTrussEntities = entitiesFromSolids({ color: meshColor }, memberSolids)
+        prevTrussKey = trussKey
+        prevTrussMeshColorKey = meshColorKey
+        zoomToFit = state.viewer.rendering.autoZoom
+        updateView = true
+      }
+    } else if (prevTrussEntities.length > 0 || prevTrussKey !== '') {
+      prevTrussEntities = []
+      prevTrussKey = ''
+      prevTrussMeshColorKey = ''
+      updateView = true
+    }
 
     if (state.themes && state.themes.themeSettings) {
       const theme = state.themes.themeSettings.viewer
@@ -173,7 +229,8 @@ const viewer = (state, i18n) => {
     viewerOptions.entities = [
       state.viewer.grid.show ? grid : undefined,
       state.viewer.axes.show ? axes : undefined,
-      ...prevEntities
+      ...prevEntities,
+      ...prevTrussEntities
     ].filter((x) => x !== undefined)
 
     // special camera commands

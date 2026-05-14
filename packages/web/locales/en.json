@@ -58,5 +58,25 @@
   "editorCommand":"Editor command",
   "reevaluate":"Compile",
 
-  "always":"Always"
+  "always":"Always",
+
+  "Truss": "Truss",
+  "Nodes and members are drawn in screen space (size does not change when zooming).": "Nodes and members are drawn in screen space (size does not change when zooming).",
+  "Nodes": "Nodes",
+  "Elements": "Elements",
+  "start node": "Start node",
+  "end node": "End node",
+  "Add node": "Add node",
+  "Add element": "Add element",
+
+  "Screen-space nodes/lines do not change size when zooming. Enable 3D members to render solid bars (same color as the mesh in the viewer theme).": "Screen-space nodes/lines do not change size when zooming. Enable 3D members to render solid bars (same color as the mesh in the viewer theme).",
+  "3D members": "3D members",
+  "Show 3D cross-section (solid bars)": "Show 3D cross-section (solid bars)",
+  "Section": "Section",
+  "Rectangle (b × h)": "Rectangle (b × h)",
+  "Square (b)": "Square (b)",
+  "Circle (radius)": "Circle (radius)",
+  "b (width)": "b (width)",
+  "h (depth)": "h (depth)",
+  "Radius": "Radius"
 }

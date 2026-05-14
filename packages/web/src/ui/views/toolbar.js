@@ -5,12 +5,17 @@ const toolbar = (state, i18n) => {
   const editorIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit-3"><polygon points="14 2 18 6 7 17 3 17 3 13 14 2"/><line x1="3" y1="22" x2="21" y2="22"/></svg>`
   const helpIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-help-circle"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/></svg>`
 
+  const trussIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 L12 4 L20 20"/><line x1="8" y1="14" x2="16" y2="14"/><circle cx="12" cy="4" r="2" fill="currentColor" stroke="none"/><circle cx="4" cy="20" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="20" r="2" fill="currentColor" stroke="none"/></svg>`
+
   return html`<span id='toolbar'>
         <button id='toggleOptions' aria-label='options'>
           ${optionsIcon}
         </button>
         <button id='toggleEditor' aria-label='editor'>
           ${editorIcon}
+        </button>
+        <button id='toggleTruss' aria-label='truss'>
+          ${trussIcon}
         </button>
         <button id='toggleHelp' aria-label='help'>
           ${helpIcon}

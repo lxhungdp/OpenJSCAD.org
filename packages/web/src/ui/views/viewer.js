@@ -1,4 +1,5 @@
 const html = require('nanohtml')
+const vec3 = require('gl-vec3')
 
 // viewer data
 const rendererStuff = require('@jscad/regl-renderer')
@@ -6,6 +7,7 @@ const rendererStuff = require('@jscad/regl-renderer')
 const { pointerGestures } = require('../../most-gestures')
 const { prepareRender, drawCommands, cameras, entitiesFromSolids } = rendererStuff
 const perspectiveCamera = cameras.perspective
+const orthographicCamera = cameras.orthographic
 const orbitControls = rendererStuff.controls.orbit
 const syncTrussOverlay = require('./trussOverlaySync')
 const trussMembersToSolids = require('../../core/trussMembersToSolids')
@@ -25,6 +27,38 @@ let panDelta = [0, 0]
 let zoomDelta = 0
 let zoomToFit = false
 let updateView = true
+let prevViewMode
+
+const cloneControlsDefaults = (rotateAllowed) => {
+  const c = Object.assign({}, orbitControls.defaults)
+  c.userControl = Object.assign({}, orbitControls.defaults.userControl, { rotate: rotateAllowed })
+  return c
+}
+
+const applyViewMode = (mode, canvasEl) => {
+  if (mode === '3d') {
+    controls = cloneControlsDefaults(true)
+    camera.projectionType = 'perspective'
+    camera.target = [0, 0, 0]
+    camera.up = [0, 0, 1]
+    camera.position = [150, -180, 233]
+    resize(canvasEl)
+    return
+  }
+
+  const presetByMode = { xy: 'top', xz: 'front', yz: 'right' }
+  const preset = presetByMode[mode]
+  if (!preset) return
+
+  controls = cloneControlsDefaults(false)
+  camera.projectionType = 'perspective'
+  camera.target = [0, 0, 0]
+  camera.up = [0, 0, 1]
+  const adjustment = cameras.camera.toPresetView(preset, { camera })
+  camera.position = adjustment.position
+  resize(canvasEl)
+  Object.assign(camera, cameras.camera.fromPerspectiveToOrthographic(camera))
+}
 
 const grid = { // command to draw the grid
   visuals: {
@@ -68,13 +102,18 @@ const viewer = (state, i18n) => {
 
     window.addEventListener('resize', (evt) => { updateView = true })
 
-    // rotate & pan
+    el.addEventListener('mousedown', (e) => {
+      if (e.button === 1) e.preventDefault()
+    }, { passive: false })
+
+    // rotate & pan (pan: middle mouse or multi-touch)
     gestures.drags
       .forEach((data) => {
         const ev = data.originalEvents[0]
         const { x, y } = data.delta
-        const shiftKey = (ev.shiftKey === true) || (ev.touches && ev.touches.length > 2)
-        if (shiftKey) {
+        const middlePan = data.type === 'mouse' && (ev.buttons & 4) !== 0
+        const touchPan = Boolean(ev.touches && ev.touches.length > 2)
+        if (middlePan || touchPan) {
           panDelta[0] += x
           panDelta[1] += y
         } else {
@@ -235,11 +274,18 @@ const viewer = (state, i18n) => {
       ...prevTrussEntities
     ].filter((x) => x !== undefined)
 
+    const viewMode = (state.viewer.camera && state.viewer.camera.viewMode) || '3d'
+    if (prevViewMode !== viewMode) {
+      applyViewMode(viewMode, el)
+      prevViewMode = viewMode
+      updateView = true
+    }
+
     // special camera commands
     if (state.viewer.camera.position !== '') {
       const adjustment = cameras.camera.toPresetView(state.viewer.camera.position, { camera })
       camera.position = adjustment.position
-      perspectiveCamera.update(camera)
+      perspectiveCamera.update(camera, camera)
 
       state.viewer.camera.position = ''
     }
@@ -312,7 +358,17 @@ const resize = (viewerElement) => {
     viewerElement.width = width
     viewerElement.height = height
 
-    perspectiveCamera.setProjection(camera, camera, { width, height })
+    if (camera.projectionType === 'orthographic') {
+      const aspect = width / height
+      const distance = vec3.length(vec3.subtract([], camera.position, camera.target)) * 0.3
+      const frustumWidth = Math.tan(camera.fov) * distance * aspect
+      const frustumHeight = Math.tan(camera.fov) * distance
+      Object.assign(camera, orthographicCamera.setProjection(camera, { width: frustumWidth, height: frustumHeight }))
+      camera.viewport = [0, 0, width, height]
+      camera.aspect = aspect
+    } else {
+      perspectiveCamera.setProjection(camera, camera, { width, height })
+    }
     perspectiveCamera.update(camera, camera)
   }
 }

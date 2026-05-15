@@ -10,12 +10,10 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, trussC
   const status = require('./status')(state, i18n)
   const help = require('./help')(state, i18n)
 
-  const io = require('./io')(state, i18n)
   const editor = require('./editor').editorWrapper(state, editorCallbackToStream, i18n)
   const toolBar = require('./toolbar')(state, i18n)
 
   const viewer = require('./viewer')(state, i18n)
-  const viewerControls = require('./viewerControls')(state, i18n)
 
   if (state.themes && state.themes.themeSettings) {
     // set the global CSS variables (theme)
@@ -27,18 +25,9 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, trussC
 
   const output = html`
   <div id='container'>
-    <div id='header'>
-      <span id='jscadName'>
-        <h3>JSCAD</h3>
-      </span>
-      <span id='designName'>
-        <h3>${state.design.name}</h3>
-      </span>
-      ${io}
-    </div>
+    <div id='header'></div>
 
     ${toolBar}
-    ${viewerControls}
 
     <!--Status information/errors-->
     ${status}

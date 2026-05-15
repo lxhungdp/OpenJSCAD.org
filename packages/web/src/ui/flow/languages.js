@@ -75,10 +75,9 @@ const actions = ({ sources }) => {
 
   const setLanguage$ = most.mergeArray([
     setLanguageFromDefault$,
-    sources.dom.select('#languageSwitcher').events('change')
-      .map((e) => e.target.value),
     setLanguageFromStore$
   ])
+    .map(() => 'en')
     .thru(withLatestFrom(reducers.setLanguage, sources.state))
     .map((payload) => Object.assign({}, { type: 'setLanguage', sink: 'state' }, { state: payload }))
 

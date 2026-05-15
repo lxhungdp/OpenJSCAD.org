@@ -1,10 +1,9 @@
 const html = require('nanohtml')
 
 const options = (state, i18n) => {
-  const languages = state.languages.available.map((language) => {
-    const selected = state.languages.active === language.code
-    return html`<option value='${language.code}' selected=${selected}>${i18n.translate(language.fullName)}</option>`
-  })
+  const io = require('./io')(state, i18n)
+  const viewerControls = require('./viewerControls')(state, i18n)
+
   const themes = Object.entries(state.themes.available).map((theme) => {
     const value = theme[0]
     const name = theme[1].name
@@ -12,35 +11,38 @@ const options = (state, i18n) => {
     return html`<option value='${value}' selected=${selected}>${name}</option>`
   })
 
-  const shortcuts = require('./shortcuts')(state, i18n)
-
   return html`
-  <section class="popup-menu" id='options' style='visibility:${state.activeTool === 'options' ? 'visible' : 'hidden'}; color:${state.themes.themeSettings.secondaryTextColor}'>   
+  <section
+    class="popup-menu jscad-settings"
+    id='options'
+    style='visibility:${state.activeTool === 'options' ? 'visible' : 'hidden'}; color:${state.themes.themeSettings.secondaryTextColor}'
+  >
+    <fieldset class="settings-fieldset">
+      <legend class="settings-legend">Project</legend>
+      ${io}
+    </fieldset>
 
-  <fieldset>
-    <legend> <h3> ${i18n`Languages`} </h3> </legend>
-    <select id='languageSwitcher'>
-      ${languages}  
-    </select>
-  </fieldset>
+    <fieldset class="settings-fieldset">
+      <legend class="settings-legend">Viewer</legend>
+      ${viewerControls}
+    </fieldset>
 
-  <fieldset>
-    <legend> <h3> ${i18n`Themes`} </h3> </legend>
-    <select id='themeSwitcher'>
-      ${themes}
-    </select>
-  </fieldset>
+    <fieldset class="settings-fieldset">
+      <legend class="settings-legend">${i18n`Themes`}</legend>
+      <div class="settings-theme-row">
+        <select id='themeSwitcher' aria-label="${i18n`Themes`}">${themes}</select>
+      </div>
+    </fieldset>
 
-  <fieldset>
-    <legend> <h3> ${i18n`Generation`}</h3> </legend>
-    <label>${i18n`timeout for generation`}
-      <input id='solidsTimeout' type='number' min=0 max=200000 value=${state.design.solidsTimeOut} />
-    </label>
-  </fieldset>
-
-  ${shortcuts}
-
-</section>`
+    <fieldset class="settings-fieldset">
+      <legend class="settings-legend">${i18n`Generation`}</legend>
+      <div class="settings-generation-row">
+        <label class="settings-timeout-label">${i18n`timeout for generation`}
+          <input id='solidsTimeout' type='number' min=0 max=200000 value=${state.design.solidsTimeOut} />
+        </label>
+      </div>
+    </fieldset>
+  </section>`
 }
 
 module.exports = options

@@ -19,7 +19,8 @@ const reducers = {
         show: true
       },
       camera: {
-        position: ''
+        position: '',
+        viewMode: '3d'
       }
     }
     const truss = {
@@ -71,6 +72,12 @@ const reducers = {
   setProjectionType: (state, projectionType) => {
     const viewer = Object.assign({}, state.viewer, { camera: { projectionType } })
     return { viewer }
+  },
+
+  setViewMode: (state, viewMode) => {
+    const camera = Object.assign({}, state.viewer.camera, { viewMode })
+    const viewer = Object.assign({}, state.viewer, { camera })
+    return { viewer }
   }
 
 }
@@ -114,6 +121,17 @@ const actions = ({ sources }) => {
     .thru(withLatestFrom(reducers.toggleAutoZoom, sources.state))
     .map((data) => ({ type: 'toggleAutoZoom', state: data, sink: 'state' }))
 
+  const setViewMode$ = most.mergeArray([
+    sources.dom.select('.view-mode-btn').events('click')
+      .map((e) => {
+        const btn = e.target && e.target.closest && e.target.closest('.view-mode-btn')
+        return btn ? btn.getAttribute('data-view-mode') : undefined
+      })
+      .filter((mode) => mode === '3d' || mode === 'xy' || mode === 'xz' || mode === 'yz')
+  ])
+    .thru(withLatestFrom(reducers.setViewMode, sources.state))
+    .map((data) => ({ type: 'setViewMode', state: data, sink: 'state' }))
+
   // all other viewer actions, triggered from elsewhere
   const otherActions = ['toPresetView']
   const otherViewerActions$ = sources.actions
@@ -128,6 +146,7 @@ const actions = ({ sources }) => {
     toggleAxes$,
     toggleAutoRotate$,
     toggleAutoZoom$,
+    setViewMode$,
     otherViewerActions$
   }
 }

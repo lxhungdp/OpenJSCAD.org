@@ -18,7 +18,7 @@ section.structures-menu-panel {
 section.structures-menu-panel h3 {
   margin: 0 0 4px;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 400;
   border-bottom: 1px solid rgba(0, 0, 0, 0.12);
   padding-bottom: 8px;
 }
@@ -40,7 +40,7 @@ section.structures-menu-panel h3 {
   background: rgba(0, 188, 212, 0.12);
   color: #0e7490;
   font-size: 0.85rem;
-  font-weight: 600;
+  font-weight: 400;
   cursor: pointer;
 }
 
@@ -79,7 +79,7 @@ section.structures-menu-panel h3 {
   color: inherit;
   font-family: inherit;
   font-size: 0.875rem;
-  font-weight: 500;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
   transition: background 0.12s ease;
@@ -122,149 +122,347 @@ section.structures-menu-panel h3 {
   z-index: 2147483646;
 }
 
+/* —— Structures modals (Node, Element, Boundaries, Properties, Loads) —— */
 .structures-modal-backdrop {
   position: fixed;
   inset: 0;
-  /* Light scrim so the WebGL view stays readable behind the dialog */
   background: rgba(15, 23, 42, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   z-index: 2147483647;
+  -webkit-font-smoothing: antialiased;
 }
 
 .structures-modal {
-  width: min(480px, calc(100vw - 24px));
-  max-height: min(78vh, 720px);
+  width: min(500px, calc(100vw - 24px));
+  max-height: min(82vh, 760px);
   margin: 0;
   overflow: hidden;
-  border-radius: 12px;
-  border: 1px solid rgba(15, 23, 42, 0.2);
-  background: #fff;
-  color: #0f172a;
+  border-radius: 16px;
+  border: 1px solid rgba(15, 23, 42, 0.09);
+  background: #fafbfc;
+  color: #1e293b;
   color-scheme: light;
-  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.28);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.6) inset,
+    0 24px 64px -12px rgba(15, 23, 42, 0.22),
+    0 12px 24px -8px rgba(15, 23, 42, 0.12);
   display: flex;
   flex-direction: column;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
 }
 
 .structures-modal--wide {
-  width: min(720px, calc(100vw - 24px));
+  width: min(760px, calc(100vw - 20px));
 }
 
 .structures-modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
-  background: #f8fafc;
+  gap: 12px;
+  padding: 14px 16px 14px 18px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.07);
+  background: linear-gradient(180deg, #fff 0%, #f8fafc 100%);
+  flex-shrink: 0;
 }
 
-.structures-modal-head > span {
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: #334155;
+.structures-modal-head-text {
+  min-width: 0;
+}
+
+.structures-modal-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #0f172a;
 }
 
 .structures-modal-close {
-  width: 30px;
-  min-width: 30px;
-  height: 30px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
   padding: 0;
-  border: 1px solid rgba(15, 23, 42, 0.14);
-  border-radius: 8px;
-  background: #fff;
-  font-size: 1.1rem;
-  line-height: 1;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
   color: #64748b;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .structures-modal-close:hover {
-  color: #0e7490;
-  border-color: rgba(0, 188, 212, 0.45);
-  background: rgba(0, 188, 212, 0.08);
+  color: #0f766e;
+  background: rgba(13, 148, 136, 0.1);
+}
+
+.structures-modal-close-icon {
+  font-size: 1.35rem;
+  font-weight: 500;
+  line-height: 1;
 }
 
 .structures-modal-body {
-  padding: 12px 14px;
+  padding: 16px 18px 18px;
   overflow: auto;
   flex: 1;
+  min-height: 0;
+  background: #fafbfc;
 }
 
-.structures-modal-body--compact {
-  padding: 16px 14px;
+.structures-modal-body--loads {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.structures-modal-section {
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.structures-modal-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #475569;
+  margin: 0 0 8px;
+  line-height: 1.3;
+}
+
+.structures-modal-hint {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  margin: 0 0 12px;
+  color: #64748b;
+  opacity: 1;
+}
+
+.structures-modal-tab-panel--hidden {
+  display: none !important;
 }
 
 .structures-modal-tabs {
-  display: flex;
-  gap: 4px;
-  margin-bottom: 10px;
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 14px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.06);
 }
 
 .structures-modal-tab {
-  padding: 6px 12px;
-  border: 1px solid rgba(15, 23, 42, 0.12);
-  border-radius: 6px;
-  background: #fff;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
   color: #64748b;
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.structures-modal-tab:hover {
+  color: #334155;
+  background: rgba(255, 255, 255, 0.5);
 }
 
 .structures-modal-tab--active {
-  background: rgba(0, 188, 212, 0.12);
-  color: #0e7490;
-  border-color: rgba(0, 188, 212, 0.35);
+  background: #fff;
+  color: #0f766e;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
 .structures-modal-action {
-  margin-top: 8px;
-  padding: 6px 12px;
-  border: 1px solid rgba(0, 0, 0, 0.14);
-  border-radius: 6px;
-  background: rgba(0, 188, 212, 0.1);
-  color: #0e7490;
-  font-size: 0.8rem;
+  margin-top: 12px;
+  padding: 9px 16px;
+  border: 1px solid rgba(13, 148, 136, 0.28);
+  border-radius: 10px;
+  background: #fff;
+  color: #0f766e;
+  font-family: inherit;
+  font-size: 13px;
   font-weight: 600;
+  letter-spacing: 0.01em;
   cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
 }
 
 .structures-modal-action:hover {
-  background: rgba(0, 188, 212, 0.18);
+  background: rgba(13, 148, 136, 0.06);
+  border-color: rgba(13, 148, 136, 0.45);
 }
 
-.structures-modal-backdrop .struct-table {
+.structures-modal-table-scroll {
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: #fff;
+  overflow: auto;
+  max-width: 100%;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.structures-modal-table-scroll--wide {
+  overflow-x: auto;
+}
+
+.structures-modal-backdrop .structures-modal-table {
   width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 0.5em;
-  font-size: 0.85em;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
 }
 
-.structures-modal-backdrop .struct-table th,
-.structures-modal-backdrop .struct-table td {
-  padding: 3px 5px;
+.structures-modal-backdrop .structures-modal-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 10px 12px;
   text-align: left;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #475569;
+  background: #f8fafc;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  white-space: nowrap;
 }
 
-.structures-modal-backdrop .struct-table input,
-.structures-modal-backdrop .struct-table select {
+.structures-modal-backdrop .structures-modal-table tbody td {
+  padding: 8px 12px;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.05);
+  color: #334155;
+  font-weight: 500;
+}
+
+.structures-modal-backdrop .structures-modal-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.structures-modal-backdrop .structures-modal-table tbody tr:hover td {
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.structures-modal-dof-th {
+  text-align: center !important;
+}
+
+.structures-modal-dof-cell {
+  text-align: center;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+}
+
+.structures-modal-actions-col {
+  width: 44px;
+}
+
+.structures-modal-actions-cell {
+  width: 44px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.structures-modal-field {
   width: 4.5em;
   max-width: 100%;
+  padding: 7px 9px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 8px;
+  background: #fff;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.structures-modal-backdrop .struct-table--wide input {
+.structures-modal-field:hover {
+  border-color: rgba(15, 23, 42, 0.18);
+}
+
+.structures-modal-field:focus {
+  outline: none;
+  border-color: rgba(13, 148, 136, 0.45);
+  box-shadow: 0 0 0 3px rgba(13, 148, 136, 0.12);
+}
+
+.structures-modal-select {
+  min-width: 5.5em;
+  cursor: pointer;
+}
+
+.structures-modal-checkbox {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #0d9488;
+  cursor: pointer;
+  vertical-align: middle;
+}
+
+.structures-modal-icon-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.structures-modal-icon-btn:hover {
+  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.structures-modal-fem-cell {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: #64748b;
+  max-width: 14em;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.structures-modal-backdrop .struct-table--wide .structures-modal-field {
   width: 3.5em;
 }
 
 .structures-modal-backdrop .struct-hint {
-  font-size: 0.85em;
-  margin: 0 0 8px;
-  opacity: 0.85;
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0 0 12px;
   color: #64748b;
+  opacity: 1;
 }
 
 .structures-modal-backdrop .struct-check {
@@ -274,20 +472,18 @@ section.structures-menu-panel h3 {
   cursor: pointer;
 }
 
-.structures-modal-backdrop h4 {
-  margin: 12px 0 6px;
-  font-size: 0.85rem;
-  color: #334155;
+.structures-modal-backdrop select {
+  font-family: inherit;
+  font-weight: 500;
 }
 
-.structures-modal-backdrop h4:first-child {
-  margin-top: 0;
+/* legacy: wide table inputs (sectional) */
+.structures-modal-backdrop .struct-table--wide input {
+  width: 3.5em;
 }
 
-.structures-modal-backdrop .struct-fem-hint {
-  font-size: 0.7em;
-  opacity: 0.8;
-  max-width: 10em;
+.structures-modal-backdrop .struct-table--wide .structures-modal-select {
+  min-width: 4.25em;
 }
 
 /* Display flyout (toolbar): checkbox rows + two columns */

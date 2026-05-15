@@ -64,7 +64,9 @@ const structureMembersToSolids = (structure) => {
     const L = vec3.distance(pa, pb)
     if (L < EPS) continue
 
-    const sec = sectionById(structure, el.secId || defs.secId)
+    const sec =
+      sectionById(structure, el.secId != null && el.secId !== '' ? el.secId : defs.secId) ||
+      sectionById(structure, defs.secId)
     if (!sec) continue
 
     const profile = sectionTypeToProfile(sec.type)

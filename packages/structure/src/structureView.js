@@ -22,11 +22,17 @@ const nodeByIdMap = (structure) => {
   return m
 }
 
-const materialById = (structure, matId) =>
-  (structure.materials || []).find((m) => m.matId === matId)
+const materialById = (structure, matId) => {
+  if (matId == null || matId === '') return undefined
+  const mid = String(matId)
+  return (structure.materials || []).find((m) => String(m.matId) === mid)
+}
 
-const sectionById = (structure, secId) =>
-  (structure.sections || []).find((s) => s.secId === secId)
+const sectionById = (structure, secId) => {
+  if (secId == null || secId === '') return undefined
+  const sid = String(secId)
+  return (structure.sections || []).find((s) => String(s.secId) === sid)
+}
 
 const defaultMatSecIds = (structure) => {
   const matId = (structure.materials && structure.materials[0] && structure.materials[0].matId) || 'mat1'

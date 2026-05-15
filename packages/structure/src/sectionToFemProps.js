@@ -13,7 +13,7 @@ const sectionToFemProps = (section) => {
   const tf = Math.max(EPS, Number(section.tf) || 0)
   const r = Math.max(EPS, Number(section.r) || 0)
 
-  if (type === 'rec') {
+  if (type === 'rec' || type === 'rect' || type === 'square') {
     const area = b * H
     const momentInertiaY = (H * Math.pow(b, 3)) / 12
     const momentInertiaZ = (b * Math.pow(H, 3)) / 12
@@ -63,10 +63,12 @@ const sectionToFemProps = (section) => {
   return null
 }
 
-/** Map section type to legacy trussMembers profile key */
+/** Map section type to profile used for 3D member solids (legacy truss + structures). */
 const sectionTypeToProfile = (type) => {
-  if (type === 'circle') return 'circle'
-  if (type === 'I_Shape') return 'i'
+  if (type == null || type === '') return 'rect'
+  const t = String(type).toLowerCase()
+  if (t === 'circle') return 'circle'
+  if (t === 'i_shape' || t === 'i') return 'i'
   return 'rect'
 }
 

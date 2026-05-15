@@ -61,6 +61,8 @@ const defaultMatSec = (s) => ({
   secId: (s.sections[0] && s.sections[0].secId) || 'sec1'
 })
 
+const idEq = (a, b) => String(a) === String(b)
+
 // --- Nodes ---
 const addNode = (state) => {
   const s = ensure(state)
@@ -126,8 +128,8 @@ const addElement = (state, payload) => {
       id,
       iNode,
       jNode,
-      matId: (payload && payload.matId) || defs.matId,
-      secId: (payload && payload.secId) || defs.secId
+      matId: String((payload && payload.matId) || defs.matId),
+      secId: String((payload && payload.secId) || defs.secId)
     }]),
     nextElementId: id + 1
   })
@@ -181,11 +183,11 @@ const removeMaterial = (state, matId) => {
   const s = ensure(state)
   if (s.materials.length <= 1) return state
   const defs = defaultMatSec(s)
-  const fallback = s.materials.find((m) => m.matId !== matId)
+  const fallback = s.materials.find((m) => !idEq(m.matId, matId))
   const fid = fallback ? fallback.matId : defs.matId
   return withStructure(state, {
-    materials: s.materials.filter((m) => m.matId !== matId),
-    elements: s.elements.map((e) => (e.matId === matId ? Object.assign({}, e, { matId: fid }) : e))
+    materials: s.materials.filter((m) => !idEq(m.matId, matId)),
+    elements: s.elements.map((e) => (idEq(e.matId, matId) ? Object.assign({}, e, { matId: fid }) : e))
   })
 }
 
@@ -193,7 +195,7 @@ const updateMaterial = (state, payload) => {
   const s = ensure(state)
   const { matId, w, E, G } = payload
   return withStructure(state, {
-    materials: s.materials.map((m) => (m.matId === matId
+    materials: s.materials.map((m) => (idEq(m.matId, matId)
       ? { matId, w: Number(w), E: Number(E), G: Number(G) }
       : m))
   })
@@ -214,11 +216,11 @@ const addSection = (state) => {
 const removeSection = (state, secId) => {
   const s = ensure(state)
   if (s.sections.length <= 1) return state
-  const fallback = s.sections.find((x) => x.secId !== secId)
+  const fallback = s.sections.find((x) => !idEq(x.secId, secId))
   const fid = fallback ? fallback.secId : 'sec1'
   return withStructure(state, {
-    sections: s.sections.filter((x) => x.secId !== secId),
-    elements: s.elements.map((e) => (e.secId === secId ? Object.assign({}, e, { secId: fid }) : e))
+    sections: s.sections.filter((x) => !idEq(x.secId, secId)),
+    elements: s.elements.map((e) => (idEq(e.secId, secId) ? Object.assign({}, e, { secId: fid }) : e))
   })
 }
 
@@ -227,7 +229,7 @@ const updateSection = (state, payload) => {
   const { secId, type, b, H, tw, tf, r } = payload
   const t = (type === 'rec' || type === 'circle' || type === 'I_Shape') ? type : 'rec'
   return withStructure(state, {
-    sections: s.sections.map((x) => (x.secId === secId
+    sections: s.sections.map((x) => (idEq(x.secId, secId)
       ? {
         secId,
         type: t,

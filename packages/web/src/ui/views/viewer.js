@@ -530,28 +530,33 @@ const viewer = (state, i18n, structureCtl) => {
     prevSolids = solids
 
     let meshColor
-    let structure3d = false
+    const trStruct = structureReducers.ensure(state)
+    // Show member solids whenever the user enables it — not only while the Structures tool is active.
+    const structure3d = !!trStruct.show3dMembers
+
     if (state.themes && state.themes.themeSettings) {
-      meshColor = state.themes.themeSettings.viewer.rendering.meshColor
-      const tr = structureReducers.ensure(state)
-      structure3d = state.activeTool === 'structures' && tr.show3dMembers
+      const v = state.themes.themeSettings.viewer
+      meshColor = v && v.rendering && v.rendering.meshColor
+    }
+    if (!Array.isArray(meshColor) || meshColor.length < 3) {
+      meshColor = [0.61, 0.61, 0.61, 1]
     }
 
     let structureKey = ''
     if (structure3d) {
-      const tr = structureReducers.ensure(state)
       structureKey = JSON.stringify({
-        n: tr.nodes,
-        e: tr.elements,
-        m: tr.materials,
-        s: tr.sections
+        show3d: !!trStruct.show3dMembers,
+        n: trStruct.nodes,
+        e: trStruct.elements,
+        m: trStruct.materials,
+        s: trStruct.sections
       })
     }
 
-    if (structure3d && meshColor !== undefined) {
+    if (structure3d) {
       const meshColorKey = JSON.stringify(meshColor)
       if (structureKey !== prevStructureKey || meshColorKey !== prevStructureMeshColorKey) {
-        const memberSolids = structureMembersToSolids(structureReducers.ensure(state))
+        const memberSolids = structureMembersToSolids(trStruct)
         prevStructureEntities = entitiesFromSolids({ color: meshColor }, memberSolids)
         prevStructureKey = structureKey
         prevStructureMeshColorKey = meshColorKey

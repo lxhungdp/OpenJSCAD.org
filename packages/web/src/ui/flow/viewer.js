@@ -21,6 +21,11 @@ const reducers = {
       camera: {
         position: '',
         viewMode: '3d'
+      },
+      drawing: {
+        mode: 'none',
+        snapEnabled: true,
+        gridMinorStep: 0.01
       }
     }
     const truss = {
@@ -78,6 +83,25 @@ const reducers = {
     const camera = Object.assign({}, state.viewer.camera, { viewMode })
     const viewer = Object.assign({}, state.viewer, { camera })
     return { viewer }
+  },
+
+  setDrawingMode: (state, mode) => {
+    const m = (mode === 'node' || mode === 'element' || mode === 'none') ? mode : 'none'
+    const prev = (state.viewer && state.viewer.drawing) || { snapEnabled: true, gridMinorStep: 0.01 }
+    const drawing = Object.assign({}, prev, { mode: m })
+    const viewer = Object.assign({}, state.viewer, { drawing })
+    const out = { viewer }
+    if (m === 'node' || m === 'element') {
+      out.activeTool = 'truss'
+    }
+    return out
+  },
+
+  toggleDrawSnap: (state, snapEnabled) => {
+    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none', gridMinorStep: 0.01 }
+    const drawing = Object.assign({}, prev, { snapEnabled: !!snapEnabled })
+    const viewer = Object.assign({}, state.viewer, { drawing })
+    return { viewer }
   }
 
 }
@@ -132,6 +156,30 @@ const actions = ({ sources }) => {
     .thru(withLatestFrom(reducers.setViewMode, sources.state))
     .map((data) => ({ type: 'setViewMode', state: data, sink: 'state' }))
 
+  const setDrawingMode$ = most.mergeArray([
+    sources.dom.select('.drawing-mode-btn').events('click')
+      .map((e) => {
+        const btn = e.target && e.target.closest && e.target.closest('.drawing-mode-btn')
+        return btn ? btn.getAttribute('data-drawing-mode') : undefined
+      })
+      .filter((m) => m === 'none' || m === 'node' || m === 'element'),
+    sources.dom.select('.example').events('click').map(() => 'none')
+  ])
+    .tap(() => {
+      if (typeof document === 'undefined') return
+      const det = document.querySelector('details.toolbar-drawing-wrap')
+      if (det) det.open = false
+    })
+    .thru(withLatestFrom(reducers.setDrawingMode, sources.state))
+    .map((data) => ({ type: 'setDrawingMode', state: data, sink: 'state' }))
+
+  const toggleDrawSnap$ = most.mergeArray([
+    sources.dom.select('#toggleDrawSnap').events('click')
+      .map((e) => e.target.checked)
+  ])
+    .thru(withLatestFrom(reducers.toggleDrawSnap, sources.state))
+    .map((data) => ({ type: 'toggleDrawSnap', state: data, sink: 'state' }))
+
   // all other viewer actions, triggered from elsewhere
   const otherActions = ['toPresetView']
   const otherViewerActions$ = sources.actions
@@ -147,6 +195,8 @@ const actions = ({ sources }) => {
     toggleAutoRotate$,
     toggleAutoZoom$,
     setViewMode$,
+    setDrawingMode$,
+    toggleDrawSnap$,
     otherViewerActions$
   }
 }

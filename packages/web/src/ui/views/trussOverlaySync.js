@@ -21,13 +21,22 @@ function projectWorld (x, y, z, viewProj, cssW, cssH) {
 }
 
 /**
+ * @typedef {Object} TrussOverlayPreview
+ * @property {{x:number,y:number,z:number}} [from] rubber-band start (world)
+ * @property {{x:number,y:number,z:number}} [to] cursor / preview end (world)
+ * @property {'free'|'grid'|'node'} [toKind] snap state for preview dot
+ * @property {number} [highlightNodeId] node to emphasize when snapping
+ */
+
+/**
  * Redraw truss overlay (screen-space node dots and line members).
  * @param {SVGElement} svgEl
  * @param {Object} truss - { nodes: [{id,x,y,z}], elements: [{id,startId,endId}] }
  * @param {Object} camera - regl perspective camera with view, projection
  * @param {HTMLCanvasElement} canvasEl
+ * @param {TrussOverlayPreview|null} [preview]
  */
-function syncTrussOverlay (svgEl, truss, camera, canvasEl) {
+function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview) {
   if (!svgEl || !truss || !camera || !camera.view || !camera.projection || !canvasEl) return
 
   if (truss.show3dMembers) {
@@ -91,8 +100,51 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl) {
     c.setAttribute('stroke', 'rgba(255,255,255,0.9)')
     c.setAttribute('stroke-width', '1')
     c.setAttribute('vector-effect', 'non-scaling-stroke')
+    if (preview && preview.highlightNodeId === n.id) {
+      c.setAttribute('r', '7')
+      c.setAttribute('stroke', 'rgba(255, 193, 7, 0.95)')
+      c.setAttribute('stroke-width', '2')
+    }
     g.appendChild(c)
   })
+
+  if (preview && preview.from && preview.to) {
+    const pa = projectWorld(preview.from.x, preview.from.y, preview.from.z, viewProj, cssW, cssH)
+    const pb = projectWorld(preview.to.x, preview.to.y, preview.to.z, viewProj, cssW, cssH)
+    if (pa && pb) {
+      const guide = document.createElementNS('http://www.w3.org/2000/svg', 'line')
+      guide.setAttribute('x1', String(pa[0]))
+      guide.setAttribute('y1', String(pa[1]))
+      guide.setAttribute('x2', String(pb[0]))
+      guide.setAttribute('y2', String(pb[1]))
+      guide.setAttribute('stroke', 'rgba(0, 120, 200, 0.55)')
+      guide.setAttribute('stroke-width', '2')
+      guide.setAttribute('stroke-dasharray', '6 4')
+      guide.setAttribute('vector-effect', 'non-scaling-stroke')
+      g.appendChild(guide)
+    }
+  }
+
+  if (preview && preview.to) {
+    const pb2 = projectWorld(preview.to.x, preview.to.y, preview.to.z, viewProj, cssW, cssH)
+    if (pb2) {
+      const previewFill = preview.toKind === 'node'
+        ? 'rgba(33, 150, 243, 0.95)'
+        : preview.toKind === 'grid'
+          ? 'rgba(255, 152, 0, 0.95)'
+          : 'rgba(120, 120, 120, 0.9)'
+      const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
+      dot.setAttribute('cx', String(pb2[0]))
+      dot.setAttribute('cy', String(pb2[1]))
+      dot.setAttribute('r', '5')
+      dot.setAttribute('fill', previewFill)
+      dot.setAttribute('stroke', 'rgba(255,255,255,0.85)')
+      dot.setAttribute('stroke-width', '1')
+      dot.setAttribute('vector-effect', 'non-scaling-stroke')
+      g.appendChild(dot)
+    }
+  }
 }
 
+syncTrussOverlay.projectWorld = projectWorld
 module.exports = syncTrussOverlay

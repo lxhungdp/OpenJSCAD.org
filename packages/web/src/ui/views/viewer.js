@@ -1,5 +1,6 @@
 const html = require('nanohtml')
 const vec3 = require('gl-vec3')
+const mat4 = require('gl-mat4')
 
 // viewer data
 const rendererStuff = require('@jscad/regl-renderer')
@@ -11,11 +12,31 @@ const orthographicCamera = cameras.orthographic
 const orbitControls = rendererStuff.controls.orbit
 const syncTrussOverlay = require('./trussOverlaySync')
 const trussMembersToSolids = require('../../core/trussMembersToSolids')
+const { worldPointOnPlaneFromClient, resolvePlacement } = require('../draw/planePointer')
 
 // params
 const rotateSpeed = 0.002
 const panSpeed = 1
 const zoomSpeed = 0.08
+
+/** Skip zoom-to-fit when bounds are tiny (empty-design placeholder); else camera hugs micro-geometry and grid vanishes. */
+const ZOOM_TO_FIT_MIN_EXTENT = 1e-3
+
+const shouldZoomToFitForSolids = (autoZoom, solids) => {
+  if (!autoZoom || !solids || solids.length === 0) return false
+  try {
+    const measureAggregateBoundingBox = require('@jscad/modeling').measurements.measureAggregateBoundingBox
+    const bbox = measureAggregateBoundingBox(...solids)
+    const dx = Math.abs(bbox[1][0] - bbox[0][0])
+    const dy = Math.abs(bbox[1][1] - bbox[0][1])
+    const dz = Math.abs(bbox[1][2] - bbox[0][2])
+    const maxDim = Math.max(dx, dy, dz)
+    if (!isFinite(maxDim) || maxDim < ZOOM_TO_FIT_MIN_EXTENT) return false
+  } catch (e) {
+    return false
+  }
+  return true
+}
 
 // internal state
 let render
@@ -80,6 +101,17 @@ const axes = { // command to draw the axes
   }
 }
 
+/** Ensure grid/axes + solids entities are on viewerOptions each RAF (first frame runs before second viewer() else branch). */
+const applyViewerEntitiesFromState = (state) => {
+  if (!state || !viewerOptions || !state.viewer) return
+  viewerOptions.entities = [
+    state.viewer.grid.show ? grid : undefined,
+    state.viewer.axes.show ? axes : undefined,
+    ...prevEntities,
+    ...prevTrussEntities
+  ].filter((x) => x !== undefined)
+}
+
 let prevEntities = []
 let prevSolids
 let prevColor = []
@@ -87,10 +119,19 @@ let latestTrussState = { nodes: [], elements: [] }
 let prevTrussEntities = []
 let prevTrussKey = ''
 let prevTrussMeshColorKey = ''
+let latestAppState = null
+let trussInteractionCallback = null
+let drawOverlayPreview = null
+let elementChainAnchorId = null
+let lastPointerClient = { x: 0, y: 0 }
 
-const viewer = (state, i18n) => {
+const viewer = (state, i18n, trussCtl) => {
   const el = html`<canvas id='renderTarget'> </canvas>`
+  latestAppState = state
   latestTrussState = state.truss || latestTrussState
+  if (trussCtl && typeof trussCtl.callback === 'function') {
+    trussInteractionCallback = trussCtl.callback
+  }
 
   if (!render) {
     const options = setup(el)
@@ -106,13 +147,20 @@ const viewer = (state, i18n) => {
       if (e.button === 1) e.preventDefault()
     }, { passive: false })
 
-    // rotate & pan (pan: middle mouse or multi-touch)
     gestures.drags
       .forEach((data) => {
         const ev = data.originalEvents[0]
         const { x, y } = data.delta
+        const drawMode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
         const middlePan = data.type === 'mouse' && (ev.buttons & 4) !== 0
         const touchPan = Boolean(ev.touches && ev.touches.length > 2)
+        if (drawMode && drawMode !== 'none') {
+          if (middlePan || touchPan) {
+            panDelta[0] += x
+            panDelta[1] += y
+          }
+          return
+        }
         if (middlePan || touchPan) {
           panDelta[0] += x
           panDelta[1] += y
@@ -134,6 +182,137 @@ const viewer = (state, i18n) => {
       .forEach((x) => {
         zoomToFit = true
       })
+
+    const projectWorld = syncTrussOverlay.projectWorld
+
+    const computeDrawPlacement = (clientX, clientY) => {
+      const st = latestAppState
+      if (!st || !st.viewer || !st.viewer.drawing || st.viewer.drawing.mode === 'none') return null
+      const rect = el.getBoundingClientRect()
+      const viewProj = mat4.create()
+      mat4.multiply(viewProj, camera.projection, camera.view)
+      const raw = worldPointOnPlaneFromClient(clientX, clientY, rect, viewProj, 0)
+      if (!raw) return null
+      const drawing = st.viewer.drawing || { snapEnabled: true, gridMinorStep: 0.01 }
+      return resolvePlacement(raw, (st.truss && st.truss.nodes) || [], {
+        snapEnabled: drawing.snapEnabled !== false,
+        gridMinorStep: drawing.gridMinorStep || 0.01,
+        projectWorld,
+        viewProj,
+        rect,
+        clientX,
+        clientY
+      })
+    }
+
+    const updatePreviewFromPointer = (clientX, clientY) => {
+      lastPointerClient = { x: clientX, y: clientY }
+      const st = latestAppState
+      const mode = st && st.viewer && st.viewer.drawing && st.viewer.drawing.mode
+      if (!mode || mode === 'none') {
+        drawOverlayPreview = null
+        return
+      }
+      const pl = computeDrawPlacement(clientX, clientY)
+      if (!pl) {
+        drawOverlayPreview = null
+        return
+      }
+      const highlightNodeId = pl.kind === 'node' ? pl.nodeId : undefined
+      if (mode === 'node') {
+        drawOverlayPreview = { to: { x: pl.x, y: pl.y, z: pl.z }, toKind: pl.kind, highlightNodeId }
+        return
+      }
+      if (elementChainAnchorId != null) {
+        const truss = st.truss || { nodes: [] }
+        const anchorNode = truss.nodes.find((n) => n.id === elementChainAnchorId)
+        if (anchorNode) {
+          drawOverlayPreview = {
+            from: { x: anchorNode.x, y: anchorNode.y, z: anchorNode.z },
+            to: { x: pl.x, y: pl.y, z: pl.z },
+            toKind: pl.kind,
+            highlightNodeId
+          }
+          return
+        }
+      }
+      drawOverlayPreview = { to: { x: pl.x, y: pl.y, z: pl.z }, toKind: pl.kind, highlightNodeId }
+    }
+
+    el.addEventListener('mousemove', (e) => {
+      const mode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
+      if (!mode || mode === 'none') return
+      updatePreviewFromPointer(e.clientX, e.clientY)
+      updateView = true
+    })
+
+    el.addEventListener('mouseleave', () => {
+      drawOverlayPreview = null
+      updateView = true
+    })
+
+    el.addEventListener('mousedown', (e) => {
+      if (e.button === 1) e.preventDefault()
+      if (e.button !== 0) return
+      const st = latestAppState
+      const mode = st && st.viewer && st.viewer.drawing && st.viewer.drawing.mode
+      if (!mode || mode === 'none') return
+      const cb = trussInteractionCallback
+      if (!cb) return
+      e.preventDefault()
+      const pl = computeDrawPlacement(e.clientX, e.clientY)
+      if (!pl) return
+
+      if (mode === 'node') {
+        if (pl.kind === 'node') return
+        cb({ op: 'addNodeAt', payload: { x: pl.x, y: pl.y, z: 0 } })
+        setTimeout(() => {
+          updatePreviewFromPointer(e.clientX, e.clientY)
+          updateView = true
+        }, 0)
+        return
+      }
+
+      if (elementChainAnchorId == null) {
+        if (pl.kind === 'node') {
+          elementChainAnchorId = pl.nodeId
+        } else {
+          const nid = (st.truss && st.truss.nextNodeId) || 1
+          cb({ op: 'addNodeAt', payload: { x: pl.x, y: pl.y, z: 0 } })
+          elementChainAnchorId = nid
+        }
+        setTimeout(() => {
+          updatePreviewFromPointer(e.clientX, e.clientY)
+          updateView = true
+        }, 0)
+        return
+      }
+
+      let endId
+      if (pl.kind === 'node') {
+        endId = pl.nodeId
+      } else {
+        endId = (st.truss && st.truss.nextNodeId) || 1
+        cb({ op: 'addNodeAt', payload: { x: pl.x, y: pl.y, z: 0 } })
+      }
+      if (endId === elementChainAnchorId) return
+      cb({ op: 'addElement', payload: { startId: elementChainAnchorId, endId } })
+      elementChainAnchorId = endId
+      setTimeout(() => {
+        updatePreviewFromPointer(e.clientX, e.clientY)
+        updateView = true
+      }, 0)
+    }, { passive: false })
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return
+      const mode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
+      if (mode === 'element') {
+        elementChainAnchorId = null
+        updatePreviewFromPointer(lastPointerClient.x, lastPointerClient.y)
+        updateView = true
+      }
+    })
 
     const doRotatePanZoom = () => {
       if (rotateDelta[0] || rotateDelta[1]) {
@@ -172,6 +351,13 @@ const viewer = (state, i18n) => {
     const updateAndRender = (timestamp) => {
       doRotatePanZoom()
 
+      const drawMode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
+      if (drawMode !== 'element') {
+        elementChainAnchorId = null
+      }
+
+      applyViewerEntitiesFromState(latestAppState)
+
       if (updateView) {
         const updated = orbitControls.update({ controls, camera })
         controls = { ...controls, ...updated.controls }
@@ -187,7 +373,7 @@ const viewer = (state, i18n) => {
       const stack = el.parentElement
       const svg = stack && stack.querySelector('#trussOverlay')
       if (svg) {
-        syncTrussOverlay(svg, latestTrussState, camera, el)
+        syncTrussOverlay(svg, latestTrussState, camera, el, drawOverlayPreview)
       }
 
       window.requestAnimationFrame(updateAndRender)
@@ -208,7 +394,7 @@ const viewer = (state, i18n) => {
         prevEntities = entitiesFromSolids({ color }, solids)
         prevColor = color
 
-        zoomToFit = state.viewer.rendering.autoZoom
+        zoomToFit = shouldZoomToFitForSolids(state.viewer.rendering.autoZoom, solids)
       }
     }
     prevSolids = solids
@@ -245,7 +431,7 @@ const viewer = (state, i18n) => {
         prevTrussEntities = entitiesFromSolids({ color: meshColor }, memberSolids)
         prevTrussKey = trussKey
         prevTrussMeshColorKey = meshColorKey
-        zoomToFit = state.viewer.rendering.autoZoom
+        zoomToFit = shouldZoomToFitForSolids(state.viewer.rendering.autoZoom, memberSolids)
         updateView = true
       }
     } else if (prevTrussEntities.length > 0 || prevTrussKey !== '') {

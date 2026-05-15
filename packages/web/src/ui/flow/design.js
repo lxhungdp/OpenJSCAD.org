@@ -10,10 +10,46 @@ const reducers = require('./reducers')
 
 const jsonCompare = (first, second) => JSON.stringify(first) === JSON.stringify(second)
 
+const EMPTY_STARTUP_SOURCE = `const { cuboid } = require('@jscad/modeling').primitives
+
+// instanciateDesign requires a non-empty array of geom2/geom3/path2 — [] throws.
+// A negligible cuboid reads as an empty canvas at normal zoom.
+const main = () => [cuboid({ size: [1e-6, 1e-6, 1e-6] })]
+
+module.exports = { main }
+`
+
+const emptyStartupFiles = () => ([{
+  fullPath: '/untitled/main.js',
+  name: 'main',
+  ext: '.js',
+  source: EMPTY_STARTUP_SOURCE
+}])
+
+const shouldLoadEmptyStartup = () => {
+  if (typeof window === 'undefined') return true
+  const href = window.location.href
+  const documentUri = fetchUriParams(href, 'uri', undefined)
+  if (documentUri) return false
+  try {
+    const u = new URL(href)
+    if (u.hash && u.hash.length > 1) return false
+  } catch (e) {}
+  return true
+}
+
 const actions = ({ sources }) => {
   const initialize$ = most.just({})
     .thru(withLatestFrom(reducers.initialize, sources.state))
     .map((data) => ({ type: 'initializeDesign', state: data, sink: 'state' }))
+    .multicast()
+
+  const loadEmptyStartupDesign$ = initialize$
+    .delay(30)
+    .filter(() => shouldLoadEmptyStartup())
+    .map(() => ({ filesAndFolders: emptyStartupFiles() }))
+    .thru(withLatestFrom(reducers.setDesignContent, sources.state))
+    .map((data) => ({ type: 'loadEmptyStartupDesign', state: data, sink: 'state' }))
     .multicast()
 
   // we wait until the data here has been initialized before asking to load the serialized settings
@@ -320,6 +356,7 @@ const actions = ({ sources }) => {
 
   return {
     initialize$,
+    loadEmptyStartupDesign$,
 
     requestLoadDesignContent$,
     requestWatchDesign$,

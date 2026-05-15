@@ -118,9 +118,6 @@ const makeJscad = async (targetElement, options) => {
   //setTimeout(() => { document.getElementById('toggleGrid').click() }, 200)
   //setTimeout(() => { document.getElementById('toggleAutoZoom').click() }, 200)
 
-  // click on an example for the initial view
-  setTimeout(() => { document.getElementById('example1-1').click() }, 200)
-
   // we return a function to allow setting/modifying params
   const mainParams = callbackToObservable()
   return (params) => {

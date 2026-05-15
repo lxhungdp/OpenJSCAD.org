@@ -13,7 +13,7 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, trussC
   const editor = require('./editor').editorWrapper(state, editorCallbackToStream, i18n)
   const toolBar = require('./toolbar')(state, i18n)
 
-  const viewer = require('./viewer')(state, i18n)
+  const viewer = require('./viewer')(state, i18n, trussCallbacktoStream)
 
   if (state.themes && state.themes.themeSettings) {
     // set the global CSS variables (theme)

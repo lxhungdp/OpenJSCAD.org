@@ -7,7 +7,19 @@ const toolbar = (state, i18n) => {
 
   const trussIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20 L12 4 L20 20"/><line x1="8" y1="14" x2="16" y2="14"/><circle cx="12" cy="4" r="2" fill="currentColor" stroke="none"/><circle cx="4" cy="20" r="2" fill="currentColor" stroke="none"/><circle cx="20" cy="20" r="2" fill="currentColor" stroke="none"/></svg>`
 
+  const drawMode = (state.viewer && state.viewer.drawing && state.viewer.drawing.mode) || 'none'
+  const drawingIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2" fill="currentColor" stroke="none"/></svg>`
+  const drawingActiveClass = drawMode !== 'none' ? ' toolbar-drawing-active' : ''
+
   return html`<span id='toolbar'>
+        <details class="toolbar-drawing-wrap${drawingActiveClass}">
+          <summary class="toolbar-drawing-toggle" aria-label="Drawing tools">${drawingIcon}</summary>
+          <div class="toolbar-drawing-menu" role="menu">
+            <button type="button" class="drawing-mode-btn" data-drawing-mode="none" role="menuitem">Navigate</button>
+            <button type="button" class="drawing-mode-btn" data-drawing-mode="node" role="menuitem">Draw nodes</button>
+            <button type="button" class="drawing-mode-btn" data-drawing-mode="element" role="menuitem">Draw elements</button>
+          </div>
+        </details>
         <button id='toggleOptions' aria-label='options'>
           ${optionsIcon}
         </button>

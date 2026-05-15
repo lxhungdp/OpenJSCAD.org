@@ -6,8 +6,10 @@ const reduceTrussOp = (state, op) => {
   switch (op.op) {
     case 'addNode':
       return reducers.addNode(state)
+    case 'addNodeAt':
+      return reducers.addNodeAt(state, op.payload)
     case 'addElement':
-      return reducers.addElement(state)
+      return reducers.addElement(state, op.payload)
     case 'removeNode':
       return reducers.removeNode(state, op.nodeId)
     case 'removeElement':

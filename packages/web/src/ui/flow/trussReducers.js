@@ -28,6 +28,18 @@ const addNode = (state) => {
   })
 }
 
+const addNodeAt = (state, { x, y, z }) => {
+  const t = ensure(state)
+  const id = t.nextNodeId
+  const xi = isFinite(Number(x)) ? Number(x) : 0
+  const yi = isFinite(Number(y)) ? Number(y) : 0
+  const zi = isFinite(Number(z)) ? Number(z) : 0
+  return withTruss(state, {
+    nodes: t.nodes.concat([{ id, x: xi, y: yi, z: zi }]),
+    nextNodeId: id + 1
+  })
+}
+
 const removeNode = (state, nodeId) => {
   const t = ensure(state)
   const id = Number(nodeId)
@@ -47,10 +59,15 @@ const updateNode = (state, { id, x, y, z }) => {
   })
 }
 
-const addElement = (state) => {
+const addElement = (state, payload) => {
   const t = ensure(state)
-  const startId = t.nodes[0] ? t.nodes[0].id : 1
-  const endId = t.nodes[1] ? t.nodes[1].id : startId
+  let startId = t.nodes[0] ? t.nodes[0].id : 1
+  let endId = t.nodes[1] ? t.nodes[1].id : startId
+  if (payload && payload.startId != null && payload.endId != null) {
+    startId = Number(payload.startId)
+    endId = Number(payload.endId)
+  }
+  if (startId === endId) return state
   const eid = 'e' + t.nextElementId
   return withTruss(state, {
     elements: t.elements.concat([{ id: eid, startId, endId }]),
@@ -108,6 +125,7 @@ const setSectionTw = (state, value) => {
 
 module.exports = {
   addNode,
+  addNodeAt,
   removeNode,
   updateNode,
   addElement,

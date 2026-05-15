@@ -33,6 +33,10 @@ const viewerControls = (state, i18n) => {
       <label for="toggleAutoZoom">${i18n`auto zoom`}</label>
     </div>
   </div>
+  <div class="settings-row settings-row-checkbox">
+    <input type="checkbox" id="toggleDrawSnap" checked=${(state.viewer.drawing && state.viewer.drawing.snapEnabled) !== false} />
+    <label for="toggleDrawSnap">Snap on (nodes, then grid in world units)</label>
+  </div>
 </div>`
 }
 

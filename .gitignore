@@ -18,3 +18,6 @@ objects/
 packages/web/examples/
 .history
 
+# Vite production output (optional static site)
+packages/web/dist-vite/
+

@@ -1,6 +1,8 @@
 const html = require('nanohtml')
 
-const CodeMirror = require('codemirror')
+const cmExport = require('codemirror')
+/** Vite/Rollup CJS interop: default export vs namespace */
+const CodeMirror = typeof cmExport === 'function' ? cmExport : (cmExport && cmExport.default) || cmExport
 require('codemirror/mode/javascript/javascript')
 require('codemirror/addon/hint/javascript-hint')
 
@@ -44,8 +46,12 @@ const createWrapper = (state, callbackToStream) => {
     wrapper.onkeydown = (e) => e.stopPropagation()
     wrapper.onkeyup = (e) => e.stopPropagation()
 
-    // and add the editor
-    editor = CodeMirror.fromTextArea(wrapper.firstChild, editorOptions)
+    const textarea = wrapper.querySelector('textarea')
+    if (!textarea) throw new Error('editor: missing textarea')
+    if (typeof CodeMirror.fromTextArea !== 'function') {
+      throw new Error('editor: CodeMirror.fromTextArea missing (bad codemirror import?)')
+    }
+    editor = CodeMirror.fromTextArea(textarea, editorOptions)
 
     editor.setOption('extraKeys', {
       Tab: (cm) => {

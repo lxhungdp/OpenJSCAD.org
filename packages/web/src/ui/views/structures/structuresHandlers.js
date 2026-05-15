@@ -62,7 +62,7 @@ const attachHandlers = (root, ctl) => {
     }
   })
 
-  const show3d = root.querySelector('#structShow3d')
+  const show3d = root.querySelector('#displayShow3dMembers')
   if (show3d) show3d.onchange = () => cb({ op: 'setShow3dMembers', value: show3d.checked })
 
   root.querySelectorAll('.struct-remove-node').forEach((btn) => {

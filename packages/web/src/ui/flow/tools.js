@@ -8,6 +8,7 @@ const actions = ({ sources }) => {
     sources.dom.select('#toggleEditor').events('click').map((event) => 'editor'),
     sources.dom.select('#toggleHelp').events('click').map((event) => 'help'),
     sources.dom.select('#toggleStructures').events('click').map((event) => 'structures'),
+    sources.dom.select('#toggleDisplay').events('click').map((event) => 'display'),
     sources.dom.select('.example').events('mouseup').map((event) => undefined)
   ])
     .thru(withLatestFrom((state, tool) => {

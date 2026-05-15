@@ -125,7 +125,8 @@ section.structures-menu-panel h3 {
 .structures-modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(2, 6, 23, 0.38);
+  /* Light scrim so the WebGL view stays readable behind the dialog */
+  background: rgba(15, 23, 42, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -287,4 +288,62 @@ section.structures-menu-panel h3 {
   font-size: 0.7em;
   opacity: 0.8;
   max-width: 10em;
+}
+
+/* Display flyout (toolbar): checkbox rows + two columns */
+.structures-menu-item--check {
+  min-width: 0;
+  width: auto;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.structures-menu-item--check input {
+  margin: 0;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  accent-color: #0891b2;
+  opacity: 1;
+}
+
+.structures-menu-item--check span {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.display-menu-list {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+
+.display-menu-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  width: 100%;
+  align-items: stretch;
+}
+
+.display-menu-row .structures-menu-item--check {
+  flex: unset;
+  width: 100%;
+  min-width: 0;
+}
+
+.display-menu-item-full {
+  width: 100%;
+  flex: 0 0 auto;
+  align-self: stretch;
+}
+
+.display-menu-divider {
+  height: 0;
+  margin: 4px 0 2px;
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
 }

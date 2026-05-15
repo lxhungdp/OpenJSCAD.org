@@ -6,6 +6,22 @@ const fs = require('fs')
 const DocBlock = require('docblock')
 const docBlock = new DocBlock()
 
+const ensureVitePublicImgs = () => {
+  try {
+    const publicDir = path.join(__dirname, 'public')
+    const linkPath = path.join(publicDir, 'imgs')
+    if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true })
+    if (fs.existsSync(linkPath)) return
+    const target = path.join(__dirname, 'imgs')
+    if (!fs.existsSync(target)) return
+    fs.symlinkSync(path.relative(publicDir, target), linkPath)
+  } catch (e) {
+    console.warn('Could not create public/imgs symlink for Vite (optional):', e.message)
+  }
+}
+
+ensureVitePublicImgs()
+
 const ignoreExamples = { Imports: 1, Projects: 1 }
 
 const copyAndProcessExamples = (examplesSrc) => {

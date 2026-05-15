@@ -7,9 +7,13 @@
   "main": "src/index.js",
   "unpkg": "dist/jscad-web.min.js",
   "scripts": {
-    "build": "browserify src/index.js -o dist/jscad-web.min.js --standalone jscadWeb",
-    "build:min": "browserify src/index.js -o dist/jscad-web.min.js -g uglifyify --standalone jscadWeb",
-    "dev": "budo demo.js --port=8081 --css ./css/demo.css --live -- -b",
+    "build": "browserify src/index.js -o dist/jscad-web.min.js --standalone jscadWeb && node scripts/write-bundle-stamp.js",
+    "build:min": "browserify src/index.js -o dist/jscad-web.min.js -g uglifyify --standalone jscadWeb && node scripts/write-bundle-stamp.js",
+    "dev": "vite",
+    "dev:open": "vite --open",
+    "dev:budo": "budo demo.js --port=8081 --css ./css/demo.css --css ./css/structures-dock.css --live -- -b",
+    "preview": "vite preview",
+    "build:site": "vite build",
     "postinstall": "node postInstall.js",
     "test": "ava 'src/**/*.test.js' --verbose --timeout 2m",
     "version": "npm run build && git add dist"
@@ -39,9 +43,9 @@
     "@jscad/array-utils": "2.1.4",
     "@jscad/core": "2.6.15",
     "@jscad/examples": "2.4.2",
+    "@jscad/fem": "1.0.0",
     "@jscad/io": "2.4.14",
     "@jscad/modeling": "2.13.0",
-    "@jscad/fem": "1.0.0",
     "@jscad/regl-renderer": "2.6.15",
     "@jscad/structure": "1.0.0",
     "@most/create": "2.0.1",
@@ -64,7 +68,10 @@
     "budo": "11.6.4",
     "copy-dir": "1.3.0",
     "docblock": "0.4.5",
-    "uglifyify": "5.0.2"
+    "path-browserify": "^1.0.1",
+    "uglifyify": "5.0.2",
+    "vite": "^5.4.21",
+    "vite-plugin-commonjs": "^0.10.4"
   },
   "collective": {
     "type": "opencollective",

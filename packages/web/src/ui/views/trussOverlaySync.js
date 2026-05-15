@@ -29,7 +29,7 @@ function appendScreenLabel (parent, textStr, x, y, textAnchor, style) {
   const t = document.createElementNS('http://www.w3.org/2000/svg', 'text')
   t.setAttribute('x', String(x))
   t.setAttribute('y', String(y))
-  t.setAttribute('font-size', '11')
+  t.setAttribute('font-size', st.fontSize != null ? String(st.fontSize) : '11')
   t.setAttribute('font-weight', '700')
   t.setAttribute('font-family', 'system-ui, "Segoe UI", sans-serif')
   t.setAttribute('fill', fill)
@@ -54,6 +54,10 @@ function appendScreenLabel (parent, textStr, x, y, textAnchor, style) {
  * @typedef {Object} TrussOverlayLabelOpts
  * @property {boolean} [showNodeIds]
  * @property {boolean} [showElementIds]
+ * @property {boolean} [showSecId]
+ * @property {boolean} [showMatId]
+ * @property {boolean} [showRestraints]
+ * @property {boolean} [showReleased]
  */
 
 /**
@@ -70,6 +74,10 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
 
   const showNodeIds = !!(labelOpts && labelOpts.showNodeIds)
   const showElementIds = !!(labelOpts && labelOpts.showElementIds)
+  const showSecId = !!(labelOpts && labelOpts.showSecId)
+  const showMatId = !!(labelOpts && labelOpts.showMatId)
+  const showRestraints = labelOpts && labelOpts.showRestraints === false ? false : true
+  const showReleased = labelOpts && labelOpts.showReleased === false ? false : true
 
   if (truss.show3dMembers) {
     while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild)
@@ -123,23 +131,56 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
     g.appendChild(line)
   })
 
-  if (showElementIds) {
+  const wantElLabel = showElementIds || showSecId || showMatId
+  if (wantElLabel) {
+    const elLabelStyle = {
+      fill: 'rgba(25, 118, 210, 0.98)',
+      stroke: 'rgba(255,255,255,0.95)',
+      strokeWidth: '2.5'
+    }
     truss.elements.forEach((el) => {
       const iRef = el.iNode != null ? el.iNode : el.startId
       const jRef = el.jNode != null ? el.jNode : el.endId
       const a = nodeById[iRef]
       const b = nodeById[jRef]
       if (!a || !b) return
+      const parts = []
+      if (showElementIds) parts.push(String(el.id))
+      if (showSecId && el.secId != null && String(el.secId) !== '') parts.push(String(el.secId))
+      if (showMatId && el.matId != null && String(el.matId) !== '') parts.push(String(el.matId))
+      if (!parts.length) return
       const mx = (a.x + b.x) * 0.5
       const my = (a.y + b.y) * 0.5
       const mz = (a.z + b.z) * 0.5
       const pm = projectWorld(mx, my, mz, viewProj, cssW, cssH)
       if (!pm) return
-      appendScreenLabel(g, String(el.id), pm[0], pm[1] - 5, 'middle', {
-        fill: 'rgba(25, 118, 210, 0.98)',
-        stroke: 'rgba(255,255,255,0.95)',
-        strokeWidth: '2.5'
-      })
+      appendScreenLabel(g, parts.join(' | '), pm[0], pm[1] - 5, 'middle', elLabelStyle)
+    })
+  }
+
+  if (showReleased && truss.releases && truss.releases.length) {
+    const releaseStyle = {
+      fill: 'rgba(230, 81, 0, 0.96)',
+      stroke: 'rgba(255,255,255,0.92)',
+      strokeWidth: '2'
+    }
+    truss.releases.forEach((rel) => {
+      const el = truss.elements.find((e) => e.id === rel.elementId)
+      if (!el) return
+      const iRef = el.iNode != null ? el.iNode : el.startId
+      const jRef = el.jNode != null ? el.jNode : el.endId
+      const a = nodeById[iRef]
+      const b = nodeById[jRef]
+      if (!a || !b) return
+      const pa = projectWorld(a.x, a.y, a.z, viewProj, cssW, cssH)
+      const pb = projectWorld(b.x, b.y, b.z, viewProj, cssW, cssH)
+      if (!pa || !pb) return
+      const end = rel.end === 'start' || rel.end === 'end' || rel.end === 'both' ? rel.end : 'both'
+      const mark = (px, py, ox, oy) => {
+        appendScreenLabel(g, 'rel', px + ox, py + oy, 'middle', Object.assign({ fontSize: '8' }, releaseStyle))
+      }
+      if (end === 'start' || end === 'both') mark(pa[0], pa[1], -5, -8)
+      if (end === 'end' || end === 'both') mark(pb[0], pb[1], 5, -8)
     })
   }
 
@@ -173,6 +214,21 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
         stroke: nodeLabelStroke,
         strokeWidth: '2.5'
       })
+    })
+  }
+
+  if (showRestraints && truss.restraints && truss.restraints.length) {
+    const restraintStyle = {
+      fill: 'rgba(21, 101, 192, 0.96)',
+      stroke: 'rgba(255,255,255,0.92)',
+      strokeWidth: '2'
+    }
+    truss.restraints.forEach((r) => {
+      const n = nodeById[r.nodeId]
+      if (!n) return
+      const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
+      if (!p) return
+      appendScreenLabel(g, '▾', p[0], p[1] + 12, 'middle', restraintStyle)
     })
   }
 

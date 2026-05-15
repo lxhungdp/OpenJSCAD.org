@@ -12,7 +12,13 @@ const syncStructuresModal = (state, i18n, ctl) => {
     return
   }
 
-  const el = buildStructuresModal(state, i18n, modal)
+  let el
+  try {
+    el = buildStructuresModal(state, i18n, modal)
+  } catch (err) {
+    console.error('[structures modal]', err)
+    return
+  }
   layer.innerHTML = ''
   layer.appendChild(el)
   attachHandlers(el, ctl)
@@ -35,7 +41,6 @@ const structuresPanel = (state, i18n, structureCallbacktoStream) => {
     <section id="structures-menu" class="popup-menu structures-menu-panel"
       style="visibility:${visible ? 'visible' : 'hidden'}; color:${secColor}">
       <h3>${i18n`Structures`}</h3>
-      <p class="structures-menu-hint">${i18n`3D frame, 6 DOF/node. Edit model below, then run analysis.`}</p>
       <button type="button" class="structures-menu-analyze" data-struct-op="runFemAnalysis">${i18n`Run FEM analysis`}</button>
       <p class="structures-fem-status" aria-live="polite">${femStatus}</p>
       <nav class="structures-menu-list" role="menu" aria-label="Structures">

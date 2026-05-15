@@ -1,1 +1,3 @@
-module.exports = require('@jscad/structure').sectionToFemProps
+const { sectionToFemProps, sectionTypeToProfile } = require('@jscad/structure')
+
+module.exports = { sectionToFemProps, sectionTypeToProfile }

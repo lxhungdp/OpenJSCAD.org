@@ -5,8 +5,7 @@ const {
   iconElement,
   iconBoundaries,
   iconProperties,
-  iconLoad,
-  iconDisplay
+  iconLoad
 } = require('./structuresDockIcons')
 
 const FLYOUT_ENTRIES = [
@@ -14,8 +13,7 @@ const FLYOUT_ENTRIES = [
   { modal: 'element', label: 'Element', icon: iconElement },
   { modal: 'boundaries', label: 'Boundaries', icon: iconBoundaries },
   { modal: 'properties', label: 'Properties', icon: iconProperties },
-  { modal: 'load', label: 'Loads', icon: iconLoad },
-  { modal: 'display', label: 'Display', icon: iconDisplay }
+  { modal: 'load', label: 'Loads', icon: iconLoad }
 ]
 
 const buildStructuresDock = (state, i18n) => {

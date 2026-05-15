@@ -4,8 +4,7 @@ const {
   iconElement,
   iconBoundaries,
   iconProperties,
-  iconLoad,
-  iconDisplay
+  iconLoad
 } = require('./structuresDockIcons')
 
 const MENU_ENTRIES = [
@@ -13,8 +12,7 @@ const MENU_ENTRIES = [
   { modal: 'element', label: 'Elements', icon: iconElement },
   { modal: 'boundaries', label: 'Boundaries', icon: iconBoundaries },
   { modal: 'properties', label: 'Properties', icon: iconProperties },
-  { modal: 'load', label: 'Loads', icon: iconLoad },
-  { modal: 'display', label: 'Display', icon: iconDisplay }
+  { modal: 'load', label: 'Loads', icon: iconLoad }
 ]
 
 const buildStructuresMenuButtons = (i18n) =>

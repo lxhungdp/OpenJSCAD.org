@@ -33,7 +33,8 @@ const migrateFromTruss = (truss) => {
 
 const ensure = (state) => {
   if (state.structure && typeof state.structure === 'object' && state.structure.nodes) {
-    const s = Object.assign({}, defaultStructure(), state.structure)
+    let s = Object.assign({}, defaultStructure(), state.structure)
+    if (s.structuresModal === 'display') s = Object.assign({}, s, { structuresModal: null })
     syncNextIds(s)
     return s
   }

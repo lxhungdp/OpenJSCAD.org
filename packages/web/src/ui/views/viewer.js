@@ -63,6 +63,28 @@ const shouldZoomToFitForSolids = (autoZoom, solids) => {
   return true
 }
 
+/** Rounded bbox signature so re-instantiated solids (new object ids) do not re-trigger auto zoom. */
+const getSolidsBBoxKey = (solids) => {
+  if (!solids || solids.length === 0) return ''
+  try {
+    const measureAggregateBoundingBox = require('@jscad/modeling').measurements.measureAggregateBoundingBox
+    const bbox = measureAggregateBoundingBox(...solids)
+    const r = (n) => Math.round(n * 1e6) / 1e6
+    return bbox.map((corner) => corner.map(r).join(',')).join('|')
+  } catch (e) {
+    return ''
+  }
+}
+
+const rgbaArraysEqual = (a, b) => {
+  if (a === b) return true
+  if (!a || !b || a.length !== b.length) return false
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false
+  }
+  return true
+}
+
 // internal state
 let render
 let viewerOptions
@@ -166,14 +188,24 @@ let latestStructureState = structureReducers.ensure({})
 let prevStructureEntities = []
 let prevStructureKey = ''
 let prevStructureMeshColorKey = ''
+/** Last bbox used for auto zoom-to-fit (avoids repeated fit on identical geometry recompile). */
+let lastAutoZoomBBoxKey = null
+/** Serialized theme rendering props applied to viewerOptions (avoid RAF orbit update every tick). */
+let lastAppliedThemeRenderingKey = ''
 let latestAppState = null
 let structureInteractionCallback = null
 let drawOverlayPreview = null
 let elementChainAnchorId = null
 let lastPointerClient = { x: 0, y: 0 }
 
+/** One canvas for the app lifetime: each `viewer()` render used to mint a new `<canvas>`, morphdom swapped it out, and regl kept rendering a detached context → blank white viewport. */
+let persistentViewerCanvas = null
+
 const viewer = (state, i18n, structureCtl) => {
-  const el = html`<canvas id='renderTarget'> </canvas>`
+  if (!persistentViewerCanvas) {
+    persistentViewerCanvas = html`<canvas id='renderTarget'> </canvas>`
+  }
+  const el = persistentViewerCanvas
   latestAppState = state
   latestStructureState = structureReducers.ensure(state)
   if (structureCtl && typeof structureCtl.callback === 'function') {
@@ -417,7 +449,7 @@ const viewer = (state, i18n, structureCtl) => {
 
       if (zoomToFit) {
         controls.zoomToFit.tightness = 1.5
-        const zoomFitEntities = [...prevEntities, ...prevTrussEntities]
+        const zoomFitEntities = [...prevEntities, ...prevStructureEntities]
         const updated = orbitControls.zoomToFit({ controls, camera, entities: zoomFitEntities })
         controls = { ...controls, ...updated.controls }
         zoomToFit = false
@@ -454,7 +486,11 @@ const viewer = (state, i18n, structureCtl) => {
         const draw = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing
         syncTrussOverlay(svg, latestStructureState, camera, el, drawOverlayPreview, {
           showNodeIds: !!(draw && draw.showNodeIds),
-          showElementIds: !!(draw && draw.showElementIds)
+          showElementIds: !!(draw && draw.showElementIds),
+          showSecId: !!(draw && draw.showSecId),
+          showMatId: !!(draw && draw.showMatId),
+          showRestraints: !draw || draw.showRestraints !== false,
+          showReleased: !draw || draw.showReleased !== false
         })
       }
       if (stack) {
@@ -476,13 +512,19 @@ const viewer = (state, i18n, structureCtl) => {
     if (prevSolids) {
       const theme = state.themes.themeSettings.viewer
       const color = theme.rendering.meshColor
-      const sameColor = prevColor === color
+      const sameColor = rgbaArraysEqual(prevColor, color)
       const sameSolids = compareSolids(solids, prevSolids)
       if (!(sameSolids && sameColor)) {
         prevEntities = entitiesFromSolids({ color }, solids)
         prevColor = color
 
-        zoomToFit = shouldZoomToFitForSolids(state.viewer.rendering.autoZoom, solids)
+        if (shouldZoomToFitForSolids(state.viewer.rendering.autoZoom, solids)) {
+          const bboxKey = getSolidsBBoxKey(solids)
+          if (bboxKey && bboxKey !== lastAutoZoomBBoxKey) {
+            lastAutoZoomBBoxKey = bboxKey
+            zoomToFit = true
+          }
+        }
       }
     }
     prevSolids = solids
@@ -528,9 +570,16 @@ const viewer = (state, i18n, structureCtl) => {
       grid.visuals.subColor = theme.grid.subColor
 
       if (viewerOptions.rendering) {
-        viewerOptions.rendering.background = theme.rendering.background
-        viewerOptions.rendering.meshColor = theme.rendering.meshColor
-        updateView = true
+        const trKey = JSON.stringify({
+          bg: theme.rendering.background,
+          mc: theme.rendering.meshColor
+        })
+        if (trKey !== lastAppliedThemeRenderingKey) {
+          lastAppliedThemeRenderingKey = trKey
+          viewerOptions.rendering.background = theme.rendering.background
+          viewerOptions.rendering.meshColor = theme.rendering.meshColor
+          updateView = true
+        }
       }
     }
 
@@ -644,6 +693,7 @@ const resize = (viewerElement) => {
 
 let idCounter = Date.now()
 const compareSolids = (current, previous) => {
+  if (current === previous) return true
   // add an id to each solid if not already
   current = current.map((s) => {
     if (!s.id) s.id = ++idCounter

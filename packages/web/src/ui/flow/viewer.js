@@ -29,8 +29,12 @@ const reducers = {
       drawing: {
         mode: 'none',
         snapEnabled: true,
-        showNodeIds: false,
-        showElementIds: false
+        showNodeIds: true,
+        showElementIds: true,
+        showSecId: false,
+        showMatId: false,
+        showRestraints: true,
+        showReleased: true
       }
     }
     const structure = require('../../core/structure/defaultStructure')()
@@ -139,6 +143,34 @@ const reducers = {
     const drawing = Object.assign({}, prev, { showElementIds: !!show })
     const viewer = Object.assign({}, state.viewer, { drawing })
     return { viewer }
+  },
+
+  toggleShowSecId: (state, show) => {
+    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none' }
+    const drawing = Object.assign({}, prev, { showSecId: !!show })
+    const viewer = Object.assign({}, state.viewer, { drawing })
+    return { viewer }
+  },
+
+  toggleShowMatId: (state, show) => {
+    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none' }
+    const drawing = Object.assign({}, prev, { showMatId: !!show })
+    const viewer = Object.assign({}, state.viewer, { drawing })
+    return { viewer }
+  },
+
+  toggleShowRestraints: (state, show) => {
+    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none' }
+    const drawing = Object.assign({}, prev, { showRestraints: !!show })
+    const viewer = Object.assign({}, state.viewer, { drawing })
+    return { viewer }
+  },
+
+  toggleShowReleased: (state, show) => {
+    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none' }
+    const drawing = Object.assign({}, prev, { showReleased: !!show })
+    const viewer = Object.assign({}, state.viewer, { drawing })
+    return { viewer }
   }
 
 }
@@ -218,18 +250,46 @@ const actions = ({ sources }) => {
     .map((data) => ({ type: 'toggleDrawSnap', state: data, sink: 'state' }))
 
   const toggleShowNodeIds$ = most.mergeArray([
-    sources.dom.select('#toggleShowNodeIds').events('change')
+    sources.dom.select('#displayShowNodeIds').events('change')
       .map((e) => e.target.checked)
   ])
     .thru(withLatestFrom(reducers.toggleShowNodeIds, sources.state))
     .map((data) => ({ type: 'toggleShowNodeIds', state: data, sink: 'state' }))
 
   const toggleShowElementIds$ = most.mergeArray([
-    sources.dom.select('#toggleShowElementIds').events('change')
+    sources.dom.select('#displayShowElementIds').events('change')
       .map((e) => e.target.checked)
   ])
     .thru(withLatestFrom(reducers.toggleShowElementIds, sources.state))
     .map((data) => ({ type: 'toggleShowElementIds', state: data, sink: 'state' }))
+
+  const toggleShowSecId$ = most.mergeArray([
+    sources.dom.select('#displayShowSecId').events('change')
+      .map((e) => e.target.checked)
+  ])
+    .thru(withLatestFrom(reducers.toggleShowSecId, sources.state))
+    .map((data) => ({ type: 'toggleShowSecId', state: data, sink: 'state' }))
+
+  const toggleShowMatId$ = most.mergeArray([
+    sources.dom.select('#displayShowMatId').events('change')
+      .map((e) => e.target.checked)
+  ])
+    .thru(withLatestFrom(reducers.toggleShowMatId, sources.state))
+    .map((data) => ({ type: 'toggleShowMatId', state: data, sink: 'state' }))
+
+  const toggleShowRestraints$ = most.mergeArray([
+    sources.dom.select('#displayShowRestraints').events('change')
+      .map((e) => e.target.checked)
+  ])
+    .thru(withLatestFrom(reducers.toggleShowRestraints, sources.state))
+    .map((data) => ({ type: 'toggleShowRestraints', state: data, sink: 'state' }))
+
+  const toggleShowReleased$ = most.mergeArray([
+    sources.dom.select('#displayShowReleased').events('change')
+      .map((e) => e.target.checked)
+  ])
+    .thru(withLatestFrom(reducers.toggleShowReleased, sources.state))
+    .map((data) => ({ type: 'toggleShowReleased', state: data, sink: 'state' }))
 
   const gridLayoutFromInput = (e) => {
     const id = e.target && e.target.id
@@ -271,6 +331,10 @@ const actions = ({ sources }) => {
     toggleDrawSnap$,
     toggleShowNodeIds$,
     toggleShowElementIds$,
+    toggleShowSecId$,
+    toggleShowMatId$,
+    toggleShowRestraints$,
+    toggleShowReleased$,
     setGridLayout$,
     otherViewerActions$
   }

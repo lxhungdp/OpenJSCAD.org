@@ -48,6 +48,8 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, struct
     ${help}
     <!-- Structures menu (like Settings) -->
     ${require('./structuresPanel')(state, i18n, structureCallbacktoStream)}
+    <!-- Display overlay / 3D options (like Settings) -->
+    ${require('./displayPanel')(state, i18n, structureCallbacktoStream)}
 
   </div>
   `

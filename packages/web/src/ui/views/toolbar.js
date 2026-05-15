@@ -5,16 +5,16 @@ const toolbar = (state, i18n) => {
   const editorIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit-3"><polygon points="14 2 18 6 7 17 3 17 3 13 14 2"/><line x1="3" y1="22" x2="21" y2="22"/></svg>`
   const helpIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-help-circle"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12" y2="17"/></svg>`
 
-  const structuresIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="12" cy="19" r="2"/><path d="M5 5h14M5 5l7 14M19 5l-7 14"/></svg>`
+  /** Three nodes: apex at top, base along bottom (connected triangle). */
+  const structuresIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 5L5 19M12 5l7 14M5 19h14"/></svg>`
 
   const drawMode = (state.viewer && state.viewer.drawing && state.viewer.drawing.mode) || 'none'
-  const drawing = (state.viewer && state.viewer.drawing) || {}
-  const showNodeIds = !!drawing.showNodeIds
-  const showElementIds = !!drawing.showElementIds
   const drawingIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2" fill="currentColor" stroke="none"/></svg>`
   const drawingActiveClass = drawMode !== 'none' ? ' toolbar-drawing-active' : ''
   const structuresActiveClass = state.activeTool === 'structures' ? ' toolbar-btn-active' : ''
+  const displayActiveClass = state.activeTool === 'display' ? ' toolbar-btn-active' : ''
   const optionsActiveClass = state.activeTool === 'options' ? ' toolbar-btn-active' : ''
+  const { iconDisplayToolbar } = require('./structures/structuresDockIcons')
 
   return html`<span id='toolbar'>
         <details class="toolbar-drawing-wrap${drawingActiveClass}">
@@ -24,16 +24,6 @@ const toolbar = (state, i18n) => {
             <button type="button" class="drawing-mode-btn" data-drawing-mode="none" role="menuitem">Navigate</button>
             <button type="button" class="drawing-mode-btn" data-drawing-mode="node" role="menuitem">Draw nodes</button>
             <button type="button" class="drawing-mode-btn" data-drawing-mode="element" role="menuitem">Draw elements</button>
-            <div class="toolbar-drawing-menu-divider" role="presentation"></div>
-            <div class="toolbar-drawing-menu-heading">Labels</div>
-            <label class="toolbar-drawing-check">
-              <input type="checkbox" id="toggleShowNodeIds" checked=${showNodeIds} />
-              <span>Show node ID</span>
-            </label>
-            <label class="toolbar-drawing-check">
-              <input type="checkbox" id="toggleShowElementIds" checked=${showElementIds} />
-              <span>Show element ID</span>
-            </label>
           </div>
         </details>
         <button id='toggleOptions' class="${optionsActiveClass}" aria-label='options'>
@@ -44,6 +34,9 @@ const toolbar = (state, i18n) => {
         </button>
         <button id='toggleStructures' class="${structuresActiveClass}" aria-label='structures'>
           ${structuresIcon}
+        </button>
+        <button id='toggleDisplay' class="${displayActiveClass}" aria-label='display'>
+          ${iconDisplayToolbar}
         </button>
         <button id='toggleHelp' aria-label='help'>
           ${helpIcon}

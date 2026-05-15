@@ -34,8 +34,17 @@ const initTranslations = (options) => {
 }
 
 const i18nImport = require('es2015-i18n-tag')
-const i18n = i18nImport.default
-const { i18nConfig } = i18nImport
+const i18n = i18nImport.default != null ? i18nImport.default : i18nImport
+// Vite/Rollup often surfaces CJS as `{ default: tagFn }` and drops named exports on the namespace.
+let i18nConfig = typeof i18nImport.i18nConfig === 'function' ? i18nImport.i18nConfig : undefined
+if (typeof i18nConfig !== 'function' && typeof globalThis !== 'undefined') {
+  i18nConfig = globalThis.i18nConfig
+}
+if (typeof i18nConfig !== 'function') {
+  throw new Error(
+    'es2015-i18n-tag: i18nConfig missing from require() interop; check Vite/CJS handling'
+  )
+}
 
 const makei18nSideEffect = (options) => {
   const translationsCB = callBackToStream()

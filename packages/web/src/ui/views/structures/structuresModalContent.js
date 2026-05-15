@@ -2,6 +2,21 @@ const html = require('nanohtml')
 const defaultStructure = require('../../../core/structure/defaultStructure')
 const { sectionToFemProps } = require('../../../core/structure/sectionToFemProps')
 
+/** Safe one-line FEM summary for table cells (avoids throw on NaN/∞). */
+const formatFemHint = (fem) => {
+  if (!fem) return '—'
+  const { area, momentInertiaY, momentInertiaZ } = fem
+  const ok = [area, momentInertiaY, momentInertiaZ].every(
+    (n) => typeof n === 'number' && Number.isFinite(n)
+  )
+  if (!ok) return '—'
+  try {
+    return `A=${area.toExponential(3)} Iy=${momentInertiaY.toExponential(3)} Iz=${momentInertiaZ.toExponential(3)}`
+  } catch (e) {
+    return '—'
+  }
+}
+
 const RESTRAINT_PRESETS = [
   { value: 'fixed', label: 'Fixed' },
   { value: 'pinned', label: 'Pinned' },
@@ -17,8 +32,7 @@ const MODAL_TITLES = {
   element: 'Elements',
   boundaries: 'Boundaries',
   properties: 'Properties',
-  load: 'Loads',
-  display: 'Display'
+  load: 'Loads'
 }
 
 const buildNodeBody = (s, i18n) => {
@@ -135,10 +149,7 @@ const buildPropertiesBody = (s, i18n) => {
       <td><button type="button" class="struct-remove-material" data-mat-id="${m.matId}">×</button></td>
     </tr>`)
   const secRows = s.sections.map((x) => {
-    const fem = sectionToFemProps(x)
-    const femHint = fem
-      ? `A=${fem.area.toExponential(3)} Iy=${fem.momentInertiaY.toExponential(3)} Iz=${fem.momentInertiaZ.toExponential(3)}`
-      : '—'
+    const femHint = formatFemHint(sectionToFemProps(x))
     return html`
     <tr data-sec-id="${x.secId}">
       <td>${x.secId}</td>
@@ -218,15 +229,6 @@ const buildLoadBody = (s, i18n) => {
     </div>`
 }
 
-const buildDisplayBody = (s, i18n) => html`
-  <div class="structures-modal-body structures-modal-body--compact">
-    <p class="struct-hint">${i18n`Screen-space overlay when 3D members off. Use drawing toolbar to place nodes/elements.`}</p>
-    <label class="struct-check">
-      <input type="checkbox" id="structShow3d" checked=${!!s.show3dMembers} />
-      ${i18n`Show 3D members (solid bars)`}
-    </label>
-  </div>`
-
 const buildModalBody = (s, i18n, kind) => {
   switch (kind) {
     case 'node': return buildNodeBody(s, i18n)
@@ -234,7 +236,6 @@ const buildModalBody = (s, i18n, kind) => {
     case 'boundaries': return buildBoundariesBody(s, i18n)
     case 'properties': return buildPropertiesBody(s, i18n)
     case 'load': return buildLoadBody(s, i18n)
-    case 'display': return buildDisplayBody(s, i18n)
     default: return html`<div class="structures-modal-body"></div>`
   }
 }

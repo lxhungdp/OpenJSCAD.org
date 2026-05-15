@@ -26,9 +26,9 @@ const defaultStructure = () => ({
   nextNodalLoadId: 1,
   nextDistributedLoadId: 1,
   show3dMembers: false,
-  /** Open modal: null | node | element | boundaries | properties | load | display */
+  /** Open modal: null | node | element | boundaries | properties | load */
   structuresModal: null,
-  /** Active Structures panel: node | element | boundaries | properties | load | display */
+  /** Active Structures panel: node | element | boundaries | properties | load */
   structuresView: 'node',
   /** boundaries sub-tab: restraint | release */
   boundariesTab: 'restraint',

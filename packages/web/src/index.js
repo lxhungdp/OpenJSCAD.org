@@ -7,6 +7,9 @@ const callbackToObservable = require('./most-utils/callbackToObservable')
 const packageMetadata = require('../package.json')
 const keyBindings = require('../data/keybindings.json')
 
+/** Vite/Rollup: `module.exports = fn` often surfaces as `{ default: fn }` when required from transformed CJS. */
+const cjsFn = (mod) => (typeof mod === 'function' ? mod : mod && mod.default) || mod
+
 let instances = 0
 
 /** make creator function, to create new jscad instances
@@ -107,7 +110,7 @@ const makeJscad = async (targetElement, options) => {
   }
 
   // all the outputs (ie inputs from sources converted to outputs/actions etc)
-  const outputs$ = require('./ui/flow/flowIn')(sources)
+  const outputs$ = cjsFn(require('./ui/flow/flowIn'))(sources)
   // setup reactions (ie outputs to sinks)
   const extras = {
     jscadEl,
@@ -116,7 +119,7 @@ const makeJscad = async (targetElement, options) => {
     structureCallbacktoStream,
     trussCallbacktoStream
   }
-  require('./ui/flow/flowOut')({ sinks, sources, outputs$, extras })
+  cjsFn(require('./ui/flow/flowOut'))({ sinks, sources, outputs$, extras })
 
   // increase the count of jscad instances in this page
   instances += 1

@@ -49,7 +49,15 @@ const makeWebRequire = (filesAndFolders, options) => {
     fakeFs: require('./makeFakeFs')(filesAndFolders)
   }
   const { apiMainPath, fakeFs } = Object.assign({}, defaults, options)
-  const apiModule = apiMainPath === '@jscad/modeling' ? require('@jscad/modeling') : require(apiMainPath)
+  let apiModule
+  if (apiMainPath === '@jscad/modeling') {
+    apiModule = require('@jscad/modeling')
+  } else if (apiMainPath === '@jscad/io') {
+    apiModule = require('@jscad/io')
+  } else {
+    // Browser bundle: keep requires static so bundlers (e.g. Vite) can resolve them.
+    apiModule = require('@jscad/modeling')
+  }
 
   // preset core modules
   // FIXME this list of modules should be an option, replacing apiMainPath

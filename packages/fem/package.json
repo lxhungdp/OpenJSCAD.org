@@ -1,0 +1,19 @@
+{
+  "name": "@jscad/fem",
+  "version": "1.0.0",
+  "description": "3D frame FEM solver (6 DOF/node) for JSCAD — derived from Awatif l-solver (MIT)",
+  "main": "src/index.js",
+  "license": "MIT",
+  "scripts": {
+    "build:solver": "node scripts/build-solver.js",
+    "postinstall": "node scripts/build-solver.js",
+    "test": "node test/cantilever.test.js"
+  },
+  "dependencies": {
+    "@jscad/structure": "1.0.0",
+    "mathjs": "^14.4.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

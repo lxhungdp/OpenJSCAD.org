@@ -42,6 +42,8 @@
     "packages/io/*",
     "packages/modeling",
     "packages/utils/*",
+    "packages/structure",
+    "packages/fem",
     "packages/web"
   ],
   "devDependencies": {

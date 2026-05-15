@@ -59,7 +59,7 @@ function appendScreenLabel (parent, textStr, x, y, textAnchor, style) {
 /**
  * Redraw truss overlay (screen-space node dots and line members).
  * @param {SVGElement} svgEl
- * @param {Object} truss - { nodes: [{id,x,y,z}], elements: [{id,startId,endId}] }
+ * @param {Object} truss - structure model { nodes, elements: [{id,iNode,jNode}|{startId,endId}] }
  * @param {Object} camera - regl perspective camera with view, projection
  * @param {HTMLCanvasElement} canvasEl
  * @param {TrussOverlayPreview|null} [preview]
@@ -103,8 +103,10 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
   const fill = 'rgba(220,50,47,0.95)'
 
   truss.elements.forEach((el) => {
-    const a = nodeById[el.startId]
-    const b = nodeById[el.endId]
+    const iRef = el.iNode != null ? el.iNode : el.startId
+    const jRef = el.jNode != null ? el.jNode : el.endId
+    const a = nodeById[iRef]
+    const b = nodeById[jRef]
     if (!a || !b) return
     const pa = projectWorld(a.x, a.y, a.z, viewProj, cssW, cssH)
     const pb = projectWorld(b.x, b.y, b.z, viewProj, cssW, cssH)
@@ -123,8 +125,10 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
 
   if (showElementIds) {
     truss.elements.forEach((el) => {
-      const a = nodeById[el.startId]
-      const b = nodeById[el.endId]
+      const iRef = el.iNode != null ? el.iNode : el.startId
+      const jRef = el.jNode != null ? el.jNode : el.endId
+      const a = nodeById[iRef]
+      const b = nodeById[jRef]
       if (!a || !b) return
       const mx = (a.x + b.x) * 0.5
       const my = (a.y + b.y) * 0.5

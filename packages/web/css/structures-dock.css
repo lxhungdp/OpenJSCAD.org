@@ -1,0 +1,290 @@
+/* Structures popup menu (toolbar Settings style) + table modals */
+
+section.structures-menu-panel {
+  background-color: rgba(248, 249, 251, 0.97);
+  min-width: min(220px, calc(100vw - 24px));
+  max-width: min(280px, calc(100vw - 16px));
+  max-height: min(70vh, 480px);
+  padding: 14px 12px 12px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+section.structures-menu-panel h3 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  padding-bottom: 8px;
+}
+
+.structures-menu-hint {
+  margin: 0 0 10px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  opacity: 0.75;
+}
+
+.structures-menu-analyze {
+  display: block;
+  width: 100%;
+  margin: 0 0 8px;
+  padding: 8px 12px;
+  border: 1px solid rgba(0, 153, 255, 0.45);
+  border-radius: 6px;
+  background: rgba(0, 188, 212, 0.12);
+  color: #0e7490;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.structures-menu-analyze:hover {
+  background: rgba(0, 188, 212, 0.22);
+}
+
+.structures-fem-status {
+  margin: 0 0 10px;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  opacity: 0.85;
+}
+
+.structures-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.structures-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.structures-menu-item:hover {
+  background: rgba(0, 188, 212, 0.15);
+}
+
+.structures-menu-item:active {
+  background: rgba(0, 188, 212, 0.25);
+}
+
+.structures-menu-item__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: rgba(0, 0, 0, 0.65);
+}
+
+.structures-menu-item__icon svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  max-width: 16px;
+  max-height: 16px;
+}
+
+.structures-menu-item__label {
+  flex: 1;
+  line-height: 1.2;
+}
+
+/* Modal layer (portaled to body) */
+.structures-modal-layer {
+  position: relative;
+  z-index: 2147483646;
+}
+
+.structures-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.38);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 2147483647;
+}
+
+.structures-modal {
+  width: min(480px, calc(100vw - 24px));
+  max-height: min(78vh, 720px);
+  margin: 0;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  background: #fff;
+  color: #0f172a;
+  color-scheme: light;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.28);
+  display: flex;
+  flex-direction: column;
+}
+
+.structures-modal--wide {
+  width: min(720px, calc(100vw - 24px));
+}
+
+.structures-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  background: #f8fafc;
+}
+
+.structures-modal-head > span {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #334155;
+}
+
+.structures-modal-close {
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.structures-modal-close:hover {
+  color: #0e7490;
+  border-color: rgba(0, 188, 212, 0.45);
+  background: rgba(0, 188, 212, 0.08);
+}
+
+.structures-modal-body {
+  padding: 12px 14px;
+  overflow: auto;
+  flex: 1;
+}
+
+.structures-modal-body--compact {
+  padding: 16px 14px;
+}
+
+.structures-modal-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.structures-modal-tab {
+  padding: 6px 12px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 6px;
+  background: #fff;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.structures-modal-tab--active {
+  background: rgba(0, 188, 212, 0.12);
+  color: #0e7490;
+  border-color: rgba(0, 188, 212, 0.35);
+}
+
+.structures-modal-action {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  border-radius: 6px;
+  background: rgba(0, 188, 212, 0.1);
+  color: #0e7490;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.structures-modal-action:hover {
+  background: rgba(0, 188, 212, 0.18);
+}
+
+.structures-modal-backdrop .struct-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5em;
+  font-size: 0.85em;
+}
+
+.structures-modal-backdrop .struct-table th,
+.structures-modal-backdrop .struct-table td {
+  padding: 3px 5px;
+  text-align: left;
+}
+
+.structures-modal-backdrop .struct-table input,
+.structures-modal-backdrop .struct-table select {
+  width: 4.5em;
+  max-width: 100%;
+}
+
+.structures-modal-backdrop .struct-table--wide input {
+  width: 3.5em;
+}
+
+.structures-modal-backdrop .struct-hint {
+  font-size: 0.85em;
+  margin: 0 0 8px;
+  opacity: 0.85;
+  color: #64748b;
+}
+
+.structures-modal-backdrop .struct-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.structures-modal-backdrop h4 {
+  margin: 12px 0 6px;
+  font-size: 0.85rem;
+  color: #334155;
+}
+
+.structures-modal-backdrop h4:first-child {
+  margin-top: 0;
+}
+
+.structures-modal-backdrop .struct-fem-hint {
+  font-size: 0.7em;
+  opacity: 0.8;
+  max-width: 10em;
+}

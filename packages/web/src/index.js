@@ -67,14 +67,16 @@ const makeJscad = async (targetElement, options) => {
   const paramsCallbacktoStream = callbackToObservable()
   // generic editor events handling
   const editorCallbackToStream = callbackToObservable()
-  // truss panel (DOM survives morphdom — use callback stream like parameters)
-  const trussCallbacktoStream = callbackToObservable()
+  // structures panel (DOM survives morphdom — use callback stream like parameters)
+  const structureCallbacktoStream = callbackToObservable()
+  const trussCallbacktoStream = structureCallbacktoStream
 
   // all the sources of data
   const sources = {
     paramChanges: paramsCallbacktoStream.stream,
     editor: editorCallbackToStream.stream,
-    trussInteraction: trussCallbacktoStream.stream,
+    structureInteraction: structureCallbacktoStream.stream,
+    trussInteraction: structureCallbacktoStream.stream,
     state: state.source(),
     store: storage.source(),
     fs: fs.source(),
@@ -107,7 +109,13 @@ const makeJscad = async (targetElement, options) => {
   // all the outputs (ie inputs from sources converted to outputs/actions etc)
   const outputs$ = require('./ui/flow/flowIn')(sources)
   // setup reactions (ie outputs to sinks)
-  const extras = { jscadEl, paramsCallbacktoStream, editorCallbackToStream, trussCallbacktoStream }
+  const extras = {
+    jscadEl,
+    paramsCallbacktoStream,
+    editorCallbackToStream,
+    structureCallbacktoStream,
+    trussCallbacktoStream
+  }
   require('./ui/flow/flowOut')({ sinks, sources, outputs$, extras })
 
   // increase the count of jscad instances in this page

@@ -11,7 +11,8 @@ const perspectiveCamera = cameras.perspective
 const orthographicCamera = cameras.orthographic
 const orbitControls = rendererStuff.controls.orbit
 const syncTrussOverlay = require('./trussOverlaySync')
-const trussMembersToSolids = require('../../core/trussMembersToSolids')
+const structureMembersToSolids = require('../../core/structureMembersToSolids')
+const structureReducers = require('../flow/structureReducers')
 const { worldPointOnPlaneFromClient, resolvePlacement } = require('../draw/planePointer')
 
 // params
@@ -154,29 +155,29 @@ const applyViewerEntitiesFromState = (state) => {
     state.viewer.grid.show ? grid : undefined,
     state.viewer.axes.show ? axes : undefined,
     ...prevEntities,
-    ...prevTrussEntities
+    ...prevStructureEntities
   ].filter((x) => x !== undefined)
 }
 
 let prevEntities = []
 let prevSolids
 let prevColor = []
-let latestTrussState = { nodes: [], elements: [] }
-let prevTrussEntities = []
-let prevTrussKey = ''
-let prevTrussMeshColorKey = ''
+let latestStructureState = structureReducers.ensure({})
+let prevStructureEntities = []
+let prevStructureKey = ''
+let prevStructureMeshColorKey = ''
 let latestAppState = null
-let trussInteractionCallback = null
+let structureInteractionCallback = null
 let drawOverlayPreview = null
 let elementChainAnchorId = null
 let lastPointerClient = { x: 0, y: 0 }
 
-const viewer = (state, i18n, trussCtl) => {
+const viewer = (state, i18n, structureCtl) => {
   const el = html`<canvas id='renderTarget'> </canvas>`
   latestAppState = state
-  latestTrussState = state.truss || latestTrussState
-  if (trussCtl && typeof trussCtl.callback === 'function') {
-    trussInteractionCallback = trussCtl.callback
+  latestStructureState = structureReducers.ensure(state)
+  if (structureCtl && typeof structureCtl.callback === 'function') {
+    structureInteractionCallback = structureCtl.callback
   }
 
   if (!render) {
@@ -253,7 +254,7 @@ const viewer = (state, i18n, trussCtl) => {
         (typeof gridCfg.minorStep === 'number' && isFinite(gridCfg.minorStep) && gridCfg.minorStep > 0)
           ? gridCfg.minorStep
           : 1
-      return resolvePlacement(raw, (st.truss && st.truss.nodes) || [], {
+      return resolvePlacement(raw, structureReducers.ensure(st).nodes || [], {
         snapEnabled: drawing.snapEnabled !== false,
         gridMinorStep: minorStep,
         projectWorld,
@@ -283,8 +284,8 @@ const viewer = (state, i18n, trussCtl) => {
         return
       }
       if (elementChainAnchorId != null) {
-        const truss = st.truss || { nodes: [] }
-        const anchorNode = truss.nodes.find((n) => n.id === elementChainAnchorId)
+        const struct = structureReducers.ensure(st)
+        const anchorNode = struct.nodes.find((n) => n.id === elementChainAnchorId)
         if (anchorNode) {
           drawOverlayPreview = {
             from: { x: anchorNode.x, y: anchorNode.y, z: anchorNode.z },
@@ -329,7 +330,7 @@ const viewer = (state, i18n, trussCtl) => {
       const mode = st && st.viewer && st.viewer.drawing && st.viewer.drawing.mode
       if (!mode || mode === 'none') return
       if (e.shiftKey) return
-      const cb = trussInteractionCallback
+      const cb = structureInteractionCallback
       if (!cb) return
       const pl = computeDrawPlacement(e.clientX, e.clientY)
       if (!pl) return
@@ -348,7 +349,7 @@ const viewer = (state, i18n, trussCtl) => {
         if (pl.kind === 'node') {
           elementChainAnchorId = pl.nodeId
         } else {
-          const nid = (st.truss && st.truss.nextNodeId) || 1
+          const nid = structureReducers.ensure(st).nextNodeId || 1
           cb({ op: 'addNodeAt', payload: { x: pl.x, y: pl.y, z: 0 } })
           elementChainAnchorId = nid
         }
@@ -363,11 +364,11 @@ const viewer = (state, i18n, trussCtl) => {
       if (pl.kind === 'node') {
         endId = pl.nodeId
       } else {
-        endId = (st.truss && st.truss.nextNodeId) || 1
+        endId = structureReducers.ensure(st).nextNodeId || 1
         cb({ op: 'addNodeAt', payload: { x: pl.x, y: pl.y, z: 0 } })
       }
       if (endId === elementChainAnchorId) return
-      cb({ op: 'addElement', payload: { startId: elementChainAnchorId, endId } })
+      cb({ op: 'addElement', payload: { iNode: elementChainAnchorId, jNode: endId } })
       elementChainAnchorId = endId
       setTimeout(() => {
         updatePreviewFromPointer(e.clientX, e.clientY)
@@ -451,7 +452,7 @@ const viewer = (state, i18n, trussCtl) => {
       const svg = stack && stack.querySelector('#trussOverlay')
       if (svg) {
         const draw = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing
-        syncTrussOverlay(svg, latestTrussState, camera, el, drawOverlayPreview, {
+        syncTrussOverlay(svg, latestStructureState, camera, el, drawOverlayPreview, {
           showNodeIds: !!(draw && draw.showNodeIds),
           showElementIds: !!(draw && draw.showElementIds)
         })
@@ -470,8 +471,8 @@ const viewer = (state, i18n, trussCtl) => {
     // only generate entities when the solids change
     // themes, options, etc also change the viewer state
     const designSolids = state.design.solids.filter((solid) => solid && (solid instanceof Object))
-    // Truss mode: hide all design geometry so only grid/axes + screen-space truss overlay show
-    const solids = state.activeTool === 'truss' ? [] : designSolids
+    // Structures mode: hide design geometry; show grid/axes + structure overlay / members
+    const solids = state.activeTool === 'structures' ? [] : designSolids
     if (prevSolids) {
       const theme = state.themes.themeSettings.viewer
       const color = theme.rendering.meshColor
@@ -487,43 +488,37 @@ const viewer = (state, i18n, trussCtl) => {
     prevSolids = solids
 
     let meshColor
-    let truss3d = false
+    let structure3d = false
     if (state.themes && state.themes.themeSettings) {
       meshColor = state.themes.themeSettings.viewer.rendering.meshColor
-      truss3d =
-        state.activeTool === 'truss' &&
-        state.truss &&
-        state.truss.show3dMembers
+      const tr = structureReducers.ensure(state)
+      structure3d = state.activeTool === 'structures' && tr.show3dMembers
     }
 
-    let trussKey = ''
-    if (truss3d) {
-      const tr = state.truss
-      trussKey = JSON.stringify({
+    let structureKey = ''
+    if (structure3d) {
+      const tr = structureReducers.ensure(state)
+      structureKey = JSON.stringify({
         n: tr.nodes,
         e: tr.elements,
-        t: tr.sectionType,
-        b: tr.sectionB,
-        h: tr.sectionH,
-        r: tr.sectionRadius,
-        tf: tr.sectionTf,
-        tw: tr.sectionTw
+        m: tr.materials,
+        s: tr.sections
       })
     }
 
-    if (truss3d && meshColor !== undefined) {
+    if (structure3d && meshColor !== undefined) {
       const meshColorKey = JSON.stringify(meshColor)
-      if (trussKey !== prevTrussKey || meshColorKey !== prevTrussMeshColorKey) {
-        const memberSolids = trussMembersToSolids(state.truss)
-        prevTrussEntities = entitiesFromSolids({ color: meshColor }, memberSolids)
-        prevTrussKey = trussKey
-        prevTrussMeshColorKey = meshColorKey
+      if (structureKey !== prevStructureKey || meshColorKey !== prevStructureMeshColorKey) {
+        const memberSolids = structureMembersToSolids(structureReducers.ensure(state))
+        prevStructureEntities = entitiesFromSolids({ color: meshColor }, memberSolids)
+        prevStructureKey = structureKey
+        prevStructureMeshColorKey = meshColorKey
         updateView = true
       }
-    } else if (prevTrussEntities.length > 0 || prevTrussKey !== '') {
-      prevTrussEntities = []
-      prevTrussKey = ''
-      prevTrussMeshColorKey = ''
+    } else if (prevStructureEntities.length > 0 || prevStructureKey !== '') {
+      prevStructureEntities = []
+      prevStructureKey = ''
+      prevStructureMeshColorKey = ''
       updateView = true
     }
 
@@ -545,7 +540,7 @@ const viewer = (state, i18n, trussCtl) => {
       state.viewer.grid.show ? grid : undefined,
       state.viewer.axes.show ? axes : undefined,
       ...prevEntities,
-      ...prevTrussEntities
+      ...prevStructureEntities
     ].filter((x) => x !== undefined)
 
     const viewMode = (state.viewer.camera && state.viewer.camera.viewMode) || '3d'

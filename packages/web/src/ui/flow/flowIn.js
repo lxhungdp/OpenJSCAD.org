@@ -18,12 +18,12 @@ const makeActions = (sources) => {
 
   const designActions = require('./design')({ sources })
 
-  const trussActions = require('./truss')({ sources })
+  const structureActions = require('./structure')({ sources })
 
   const actions = [
     errorActions,
     designActions,
-    trussActions,
+    structureActions,
 
     exportActions,
 

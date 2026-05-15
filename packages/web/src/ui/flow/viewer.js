@@ -33,20 +33,8 @@ const reducers = {
         showElementIds: false
       }
     }
-    const truss = {
-      nodes: [],
-      elements: [],
-      nextNodeId: 1,
-      nextElementId: 1,
-      show3dMembers: false,
-      sectionType: 'rect',
-      sectionB: 2,
-      sectionH: 2,
-      sectionRadius: 1,
-      sectionTf: 0.25,
-      sectionTw: 0.2
-    }
-    return { viewer, truss }
+    const structure = require('../../core/structure/defaultStructure')()
+    return { viewer, structure }
   },
 
   toggleAutoRotate: (state, autoRotate) => {
@@ -127,7 +115,7 @@ const reducers = {
     const viewer = Object.assign({}, state.viewer, { drawing })
     const out = { viewer }
     if (m === 'node' || m === 'element') {
-      out.activeTool = 'truss'
+      out.activeTool = 'structures'
     }
     return out
   },

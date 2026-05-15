@@ -1,3 +1,5 @@
+@import url('./structures-dock.css');
+
 .jscad1{
   position: relative;
   width: 100%;
@@ -588,6 +590,103 @@ section.truss-panel .truss-section-row select {
   min-width: 5em;
 }
 
+section.structures-panel {
+  background-color: rgba(255, 255, 255, 0.92);
+  max-width: min(480px, 92vw);
+  max-height: 85vh;
+  overflow: auto;
+}
+
+section.structures-panel .struct-hint {
+  font-size: 0.85em;
+  margin: 0.5em 0;
+  opacity: 0.85;
+}
+
+.structures-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.structures-nav-btn {
+  padding: 4px 8px;
+  font-size: 0.8em;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 3px;
+}
+
+.structures-nav-btn--active {
+  background: rgba(25, 118, 210, 0.15);
+  border-color: rgba(25, 118, 210, 0.5);
+  font-weight: 600;
+}
+
+.structures-subtabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.structures-subtab {
+  padding: 3px 10px;
+  font-size: 0.85em;
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+  background: transparent;
+}
+
+.structures-subtab--active {
+  background: rgba(25, 118, 210, 0.12);
+  font-weight: 600;
+}
+
+section.structures-panel table.struct-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5em;
+  font-size: 0.82em;
+}
+
+section.structures-panel table.struct-table--wide input {
+  width: 3.5em;
+}
+
+section.structures-panel table.struct-table th,
+section.structures-panel table.struct-table td {
+  padding: 2px 3px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+section.structures-panel table.struct-table input,
+section.structures-panel table.struct-table select {
+  max-width: 100%;
+}
+
+section.structures-panel .struct-fem-hint {
+  font-size: 0.75em;
+  opacity: 0.8;
+  max-width: 8em;
+}
+
+section.structures-panel .struct-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+section.structures-panel h4 {
+  margin: 0.6em 0 0.25em;
+  font-size: 0.95em;
+}
+
 h3 {
   margin: auto;
 }
@@ -819,6 +918,11 @@ button > svg {
 
 button:hover svg {
   stroke: rgb(0, 153, 255);
+}
+
+#toolbar button.toolbar-btn-active {
+  opacity: 1;
+  border-color: rgb(0, 153, 255);
 }
 
 #toolbar button:hover {

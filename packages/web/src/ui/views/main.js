@@ -1,6 +1,6 @@
 const html = require('nanohtml')
 
-const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, trussCallbacktoStream) => {
+const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, structureCallbacktoStream) => {
   const i18nFake = (x) => x
   i18nFake.translate = (x) => x
   i18n = i18n || i18nFake
@@ -13,7 +13,7 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, trussC
   const editor = require('./editor').editorWrapper(state, editorCallbackToStream, i18n)
   const toolBar = require('./toolbar')(state, i18n)
 
-  const viewer = require('./viewer')(state, i18n, trussCallbacktoStream)
+  const viewer = require('./viewer')(state, i18n, structureCallbacktoStream)
 
   if (state.themes && state.themes.themeSettings) {
     // set the global CSS variables (theme)
@@ -46,8 +46,8 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, trussC
     ${state.activeTool === 'editor' ? editor : ''}
     <!-- Help Popup -->
     ${help}
-    <!-- Truss editor -->
-    ${require('./trussPanel')(state, i18n, trussCallbacktoStream)}
+    <!-- Structures menu (like Settings) -->
+    ${require('./structuresPanel')(state, i18n, structureCallbacktoStream)}
 
   </div>
   `

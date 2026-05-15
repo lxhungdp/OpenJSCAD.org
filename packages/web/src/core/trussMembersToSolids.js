@@ -11,11 +11,11 @@ const iBeamProfile2d = require('./iBeamProfile2d')
 const EPS = 1e-6
 
 /**
- * Local axes: +X = web “tall” direction in profile, +Y = side, +Z = beam.
- * Map +Z → beam dir and +X → projection of world +Z onto plane ⊥ beam,
- * so the web stays vertical (parallel to world Z) for horizontal members.
+ * Section plane ⊥ beam (local Z = beam direction d).
+ * Local X lies in that plane as the projection of world +Z (so roll follows Δz / slope, not an arbitrary twist).
+ * If d ∥ world Z, fall back to world +X then +Y for a stable basis.
  */
-const rotationIBeamWebParallelWorldZ = (d) => {
+const rotationBeamSectionWorldZStable = (d) => {
   const ez = [0, 0, 1]
   const up = vec3.subtract(vec3.create(), ez, vec3.scale(vec3.create(), d, vec3.dot(ez, d)))
   if (vec3.squaredLength(up) < 1e-10) {
@@ -36,24 +36,35 @@ const rotationIBeamWebParallelWorldZ = (d) => {
   )
 }
 
-const memberTransform = (pa, pb, L, useIBeamRoll) => {
-  const mid = vec3.scale(vec3.create(), vec3.add(vec3.create(), pa, pb), 0.5)
+/**
+ * Place local +Z beam (length L) from node pa to pb.
+ * - Centered primitives (cuboid/cylinder): geometry spans z ∈ [-L/2, L/2]; anchor at span midpoint.
+ * - extrudeLinear I-beam: geometry spans z ∈ [0, L]; anchor at start node pa.
+ */
+const memberTransform = (pa, pb, L, anchor) => {
   const dir = vec3.normalize(vec3.create(), vec3.subtract(vec3.create(), pb, pa))
-  const R = useIBeamRoll
-    ? rotationIBeamWebParallelWorldZ(dir)
-    : mat4.fromVectorRotation(mat4.create(), [0, 0, 1], dir)
-  const T = mat4.fromTranslation(mat4.create(), mid)
-  const TR = mat4.multiply(mat4.create(), T, R)
-  const Tz = mat4.fromTranslation(mat4.create(), [0, 0, -L / 2])
-  return mat4.multiply(mat4.create(), TR, Tz)
+  const R = rotationBeamSectionWorldZStable(dir)
+  const mid = vec3.scale(vec3.create(), vec3.add(vec3.create(), pa, pb), 0.5)
+  const origin = anchor === 'start' ? pa : mid
+  const T = mat4.fromTranslation(mat4.create(), origin)
+  return mat4.multiply(mat4.create(), T, R)
 }
 
 const nodeMap = (truss) => {
-  const m = {}
-  ;(truss.nodes || []).forEach((n) => {
+  const m = Object.create(null)
+  for (const n of truss.nodes || []) {
     m[n.id] = [n.x, n.y, n.z]
-  })
+  }
   return m
+}
+
+/** Resolve element endpoint to a node position; `startId` / `endId` are node ids (not element ids). */
+const nodePos = (byId, ref) => {
+  if (ref == null) return null
+  const p = byId[ref]
+  if (p) return p
+  const n = Number(ref)
+  return isFinite(n) ? byId[n] || null : null
 }
 
 /**
@@ -73,17 +84,16 @@ const trussMembersToSolids = (truss) => {
 
   const solids = []
   for (const el of truss.elements || []) {
-    const pa = byId[el.startId]
-    const pb = byId[el.endId]
+    const pa = nodePos(byId, el.startId)
+    const pb = nodePos(byId, el.endId)
     if (!pa || !pb) continue
 
     const L = vec3.distance(pa, pb)
     if (L < EPS) continue
 
-    const M = memberTransform(pa, pb, L, type === 'i')
-
     if (type === 'circle') {
       const cyl = cylinder({ height: L, radius: rCirc, segments: 28 })
+      const M = memberTransform(pa, pb, L, 'center')
       solids.push(transform(M, cyl))
     } else if (type === 'i') {
       const H = h
@@ -91,11 +101,13 @@ const trussMembersToSolids = (truss) => {
       const profile = iBeamProfile2d(H, B, tf, tw)
       if (!profile) continue
       const bar = extrudeLinear({ height: L }, profile)
+      const M = memberTransform(pa, pb, L, 'start')
       solids.push(transform(M, bar))
     } else {
       const bw = type === 'square' ? b : b
       const hh = type === 'square' ? b : h
       const box = cuboid({ size: [bw, hh, L], center: [0, 0, 0] })
+      const M = memberTransform(pa, pb, L, 'center')
       solids.push(transform(M, box))
     }
   }

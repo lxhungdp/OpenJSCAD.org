@@ -14,7 +14,14 @@ const defaultTruss = () => ({
 
 const ensure = (state) => {
   if (!state.truss || typeof state.truss !== 'object') return defaultTruss()
-  return Object.assign({}, defaultTruss(), state.truss)
+  const t = Object.assign({}, defaultTruss(), state.truss)
+  if (t.nextNodeId == null && t.nodes && t.nodes.length) {
+    t.nextNodeId = Math.max(...t.nodes.map((n) => n.id)) + 1
+  }
+  if (t.nextElementId == null && t.elements && t.elements.length) {
+    t.nextElementId = Math.max(...t.elements.map((e) => e.id)) + 1
+  }
+  return t
 }
 
 const withTruss = (state, next) => Object.assign({}, state, { truss: Object.assign({}, ensure(state), next) })
@@ -67,27 +74,33 @@ const addElement = (state, payload) => {
     startId = Number(payload.startId)
     endId = Number(payload.endId)
   }
+  if (!isFinite(startId) || !isFinite(endId)) {
+    startId = t.nodes[0] ? t.nodes[0].id : 1
+    endId = t.nodes[1] ? t.nodes[1].id : startId
+  }
   if (startId === endId) return state
-  const eid = 'e' + t.nextElementId
+  const id = t.nextElementId
   return withTruss(state, {
-    elements: t.elements.concat([{ id: eid, startId, endId }]),
-    nextElementId: t.nextElementId + 1
+    elements: t.elements.concat([{ id, startId, endId }]),
+    nextElementId: id + 1
   })
 }
 
 const removeElement = (state, elementId) => {
   const t = ensure(state)
+  const rid = Number(elementId)
   return withTruss(state, {
-    elements: t.elements.filter((e) => e.id !== elementId)
+    elements: t.elements.filter((e) => e.id !== rid)
   })
 }
 
 const updateElement = (state, { id, startId, endId }) => {
   const t = ensure(state)
+  const rid = Number(id)
   const si = isFinite(Number(startId)) ? Number(startId) : (t.nodes[0] && t.nodes[0].id) || 1
   const ei = isFinite(Number(endId)) ? Number(endId) : si
   return withTruss(state, {
-    elements: t.elements.map((e) => (e.id === id ? { id, startId: si, endId: ei } : e))
+    elements: t.elements.map((e) => (e.id === rid ? { id: e.id, startId: si, endId: ei } : e))
   })
 }
 

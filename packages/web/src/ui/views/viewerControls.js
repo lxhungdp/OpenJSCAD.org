@@ -5,6 +5,11 @@ const viewerControls = (state, i18n) => {
   const btn = (id, label) => html`
     <button type="button" class="view-mode-btn ${vm === id ? 'view-mode-btn-active' : ''}" data-view-mode="${id}">${label}</button>
   `
+  const g = (state.viewer && state.viewer.grid) || {}
+  const minorStep = (typeof g.minorStep === 'number' && g.minorStep > 0) ? g.minorStep : 1
+  const majorStep = (typeof g.majorStep === 'number' && g.majorStep > 0) ? g.majorStep : 10
+  const sizeX = (Array.isArray(g.size) && g.size[0] > 0) ? g.size[0] : 200
+  const sizeY = (Array.isArray(g.size) && g.size[1] > 0) ? g.size[1] : 200
   return html`
 <div id='controls' class='settings-viewer'>
   <div class="settings-view-toolbar" role="group" aria-label="View projection">
@@ -21,6 +26,24 @@ const viewerControls = (state, i18n) => {
     <div class="settings-pair-cell settings-row-checkbox">
       <input type="checkbox" id="toggleAxes" checked=${state.viewer.axes.show} />
       <label for="toggleAxes">${i18n`axes`}</label>
+    </div>
+  </div>
+  <div class="settings-row settings-viewer-grid-fields" role="group" aria-label="Grid and snap spacing">
+    <div class="settings-grid-field">
+      <label for="gridMinorStep">Minor grid / snap (world)</label>
+      <input type="number" id="gridMinorStep" min="1e-9" step="any" value=${minorStep} />
+    </div>
+    <div class="settings-grid-field">
+      <label for="gridMajorStep">Major grid (world)</label>
+      <input type="number" id="gridMajorStep" min="1e-9" step="any" value=${majorStep} />
+    </div>
+    <div class="settings-grid-field settings-grid-field-span">
+      <span class="settings-grid-field-label">Grid range (world, X × Y; axis from −½ to +½)</span>
+      <div class="settings-grid-size-pair">
+        <input type="number" id="gridSizeX" min="1e-9" step="any" value=${sizeX} title="Extent along X" />
+        <span class="settings-grid-size-mul">×</span>
+        <input type="number" id="gridSizeY" min="1e-9" step="any" value=${sizeY} title="Extent along Y" />
+      </div>
     </div>
   </div>
   <div class="settings-row settings-viewer-pair">

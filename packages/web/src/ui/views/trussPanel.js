@@ -29,12 +29,12 @@ const readNodeRow = (tr, id) => {
   return { id, x, y, z }
 }
 
-const readElementRow = (tr, id) => {
+const readElementRow = (tr, rawId) => {
   const startInp = tr.querySelector('.truss-elem-start')
   const endInp = tr.querySelector('.truss-elem-end')
   const startId = Number(startInp && startInp.value)
   const endId = Number(endInp && endInp.value)
-  return { id, startId, endId }
+  return { id: Number(rawId), startId, endId }
 }
 
 /**
@@ -203,14 +203,14 @@ const trussPanel = (state, i18n, trussCallbacktoStream) => {
 
     <h4>${i18n`Nodes`}</h4>
     <table class="truss-table">
-      <thead><tr><th>id</th><th>x</th><th>y</th><th>z</th><th></th></tr></thead>
+      <thead><tr><th>${i18n`id (node)`}</th><th>x</th><th>y</th><th>z</th><th></th></tr></thead>
       <tbody>${nodeRows}</tbody>
     </table>
     <button type="button" id="trussAddNode">${i18n`Add node`}</button>
 
     <h4>${i18n`Elements`}</h4>
     <table class="truss-table">
-      <thead><tr><th>id</th><th>${i18n`start node`}</th><th>${i18n`end node`}</th><th></th></tr></thead>
+      <thead><tr><th>${i18n`id (element)`}</th><th>${i18n`i-node`}</th><th>${i18n`j-node`}</th><th></th></tr></thead>
       <tbody>${elemRows}</tbody>
     </table>
     <button type="button" id="trussAddElement">${i18n`Add element`}</button>

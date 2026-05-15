@@ -50,10 +50,13 @@ const prepareRender = (params) => {
             const show = ('show' in visuals) ? visuals.show : true
             if (show && visuals.drawCmd && props.drawCommands[visuals.drawCmd]) {
               let drawCmd
-              if (visuals.cacheId) {
+              if (visuals.cacheId !== undefined && visuals.cacheId !== null && visuals.cacheId !== '') {
                 drawCmd = drawCache2.get(visuals.cacheId)
-              } else {
-                visuals.cacheId = drawCache2.size
+              }
+              if (!drawCmd) {
+                if (visuals.cacheId === undefined || visuals.cacheId === null || visuals.cacheId === '') {
+                  visuals.cacheId = drawCache2.size
+                }
                 drawCmd = props.drawCommands[visuals.drawCmd](regl, entity)
                 drawCache2.set(visuals.cacheId, drawCmd)
               }

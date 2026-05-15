@@ -19,6 +19,30 @@ const rotateSpeed = 0.002
 const panSpeed = 1
 const zoomSpeed = 0.08
 
+/**
+ * Default 3D orbit eye position (target is origin, up is +Z).
+ * Built from a classic opener, scaled closer for zoom-in, then rotated in XY (CCW from +Z).
+ */
+const INITIAL_3D_REFERENCE_EYE = [150, -180, 233]
+/** Smaller = closer to target (more zoom in). */
+const INITIAL_3D_DISTANCE_SCALE = 0.1
+/** Orbit reference eye around world +Z (degrees). Positive = anticlockwise when looking down +Z. */
+const INITIAL_3D_ORBIT_Z_DEG = 290
+
+const makeInitial3dCameraPosition = () => {
+  const sx = INITIAL_3D_REFERENCE_EYE[0] * INITIAL_3D_DISTANCE_SCALE
+  const sy = INITIAL_3D_REFERENCE_EYE[1] * INITIAL_3D_DISTANCE_SCALE
+  const sz = INITIAL_3D_REFERENCE_EYE[2] * INITIAL_3D_DISTANCE_SCALE
+  const rad = (INITIAL_3D_ORBIT_Z_DEG * Math.PI) / 180
+  const c = Math.cos(rad)
+  const s = Math.sin(rad)
+  const xr = sx * c - sy * s
+  const yr = sx * s + sy * c
+  return [xr, yr, sz]
+}
+
+const INITIAL_3D_CAMERA_POSITION = makeInitial3dCameraPosition()
+
 /** Skip zoom-to-fit when bounds are tiny (empty-design placeholder); else camera hugs micro-geometry and grid vanishes. */
 const ZOOM_TO_FIT_MIN_EXTENT = 1e-3
 
@@ -62,7 +86,7 @@ const applyViewMode = (mode, canvasEl) => {
     camera.projectionType = 'perspective'
     camera.target = [0, 0, 0]
     camera.up = [0, 0, 1]
-    camera.position = [150, -180, 233]
+    camera.position = [...INITIAL_3D_CAMERA_POSITION]
     resize(canvasEl)
     return
   }
@@ -81,7 +105,28 @@ const applyViewMode = (mode, canvasEl) => {
   Object.assign(camera, cameras.camera.fromPerspectiveToOrthographic(camera))
 }
 
-const grid = { // command to draw the grid
+let prevGridLayoutKey = ''
+
+const syncGridEntityFromState = (state) => {
+  if (!state || !state.viewer || !state.viewer.grid) return
+  const g = state.viewer.grid
+  const sx = (Array.isArray(g.size) && g.size[0] > 0) ? g.size[0] : 200
+  const sy = (Array.isArray(g.size) && g.size[1] > 0) ? g.size[1] : 200
+  const major = (typeof g.majorStep === 'number' && isFinite(g.majorStep) && g.majorStep > 0) ? g.majorStep : 10
+  const minor = (typeof g.minorStep === 'number' && isFinite(g.minorStep) && g.minorStep > 0) ? g.minorStep : 1
+  grid.size = [sx, sy]
+  grid.ticks = [major, minor]
+  const layoutKey = `${sx},${sy},${major},${minor}`
+  if (layoutKey !== prevGridLayoutKey) {
+    prevGridLayoutKey = layoutKey
+    // prepareRender only builds a new draw command when cacheId is unset (or cache miss in patched renderer).
+    // A preset string id with no Map entry yields drawCmd === undefined and breaks the whole pass.
+    delete grid.visuals.cacheId
+    updateView = true
+  }
+}
+
+const grid = { // command to draw the grid (size/ticks synced from state in syncGridEntityFromState)
   visuals: {
     drawCmd: 'drawGrid',
     show: true,
@@ -104,6 +149,7 @@ const axes = { // command to draw the axes
 /** Ensure grid/axes + solids entities are on viewerOptions each RAF (first frame runs before second viewer() else branch). */
 const applyViewerEntitiesFromState = (state) => {
   if (!state || !viewerOptions || !state.viewer) return
+  syncGridEntityFromState(state)
   viewerOptions.entities = [
     state.viewer.grid.show ? grid : undefined,
     state.viewer.axes.show ? axes : undefined,
@@ -139,6 +185,13 @@ const viewer = (state, i18n, trussCtl) => {
     viewerOptions = options.viewerOptions
     camera = options.camera
     render = prepareRender(viewerOptions)
+    // Match orbit controls + projection to camera now; else branch may run late or not at all
+    // (e.g. duplicate state skipped), leaving defaults out of sync with INITIAL_3D_CAMERA_POSITION.
+    const initialViewMode = (state.viewer && state.viewer.camera && state.viewer.camera.viewMode) || '3d'
+    applyViewMode(initialViewMode, el)
+    prevViewMode = initialViewMode
+    updateView = true
+
     const gestures = pointerGestures(el)
 
     window.addEventListener('resize', (evt) => { updateView = true })
@@ -154,8 +207,9 @@ const viewer = (state, i18n, trussCtl) => {
         const drawMode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
         const middlePan = data.type === 'mouse' && (ev.buttons & 4) !== 0
         const touchPan = Boolean(ev.touches && ev.touches.length > 2)
+        const shiftLeftPan = data.type === 'mouse' && ev.shiftKey === true && (ev.buttons & 1) !== 0
         if (drawMode && drawMode !== 'none') {
-          if (middlePan || touchPan) {
+          if (middlePan || touchPan || shiftLeftPan) {
             panDelta[0] += x
             panDelta[1] += y
           }
@@ -193,10 +247,15 @@ const viewer = (state, i18n, trussCtl) => {
       mat4.multiply(viewProj, camera.projection, camera.view)
       const raw = worldPointOnPlaneFromClient(clientX, clientY, rect, viewProj, 0)
       if (!raw) return null
-      const drawing = st.viewer.drawing || { snapEnabled: true, gridMinorStep: 0.01 }
+      const drawing = st.viewer.drawing || { snapEnabled: true }
+      const gridCfg = st.viewer.grid || {}
+      const minorStep =
+        (typeof gridCfg.minorStep === 'number' && isFinite(gridCfg.minorStep) && gridCfg.minorStep > 0)
+          ? gridCfg.minorStep
+          : 1
       return resolvePlacement(raw, (st.truss && st.truss.nodes) || [], {
         snapEnabled: drawing.snapEnabled !== false,
-        gridMinorStep: drawing.gridMinorStep || 0.01,
+        gridMinorStep: minorStep,
         projectWorld,
         viewProj,
         rect,
@@ -239,6 +298,18 @@ const viewer = (state, i18n, trussCtl) => {
       drawOverlayPreview = { to: { x: pl.x, y: pl.y, z: pl.z }, toKind: pl.kind, highlightNodeId }
     }
 
+    const exitDrawingMode = () => {
+      const mode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
+      if (!mode || mode === 'none') return
+      elementChainAnchorId = null
+      drawOverlayPreview = null
+      const det = document.querySelector('details.toolbar-drawing-wrap')
+      if (det) det.open = false
+      const navBtn = document.querySelector('.drawing-mode-btn[data-drawing-mode="none"]')
+      if (navBtn) navBtn.click()
+      updateView = true
+    }
+
     el.addEventListener('mousemove', (e) => {
       const mode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
       if (!mode || mode === 'none') return
@@ -257,9 +328,9 @@ const viewer = (state, i18n, trussCtl) => {
       const st = latestAppState
       const mode = st && st.viewer && st.viewer.drawing && st.viewer.drawing.mode
       if (!mode || mode === 'none') return
+      if (e.shiftKey) return
       const cb = trussInteractionCallback
       if (!cb) return
-      e.preventDefault()
       const pl = computeDrawPlacement(e.clientX, e.clientY)
       if (!pl) return
 
@@ -304,13 +375,19 @@ const viewer = (state, i18n, trussCtl) => {
       }, 0)
     }, { passive: false })
 
+    el.addEventListener('contextmenu', (e) => {
+      const mode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
+      if (!mode || mode === 'none') return
+      e.preventDefault()
+      exitDrawingMode()
+    })
+
     window.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return
       const mode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
-      if (mode === 'element') {
-        elementChainAnchorId = null
-        updatePreviewFromPointer(lastPointerClient.x, lastPointerClient.y)
-        updateView = true
+      if (mode && mode !== 'none') {
+        e.preventDefault()
+        exitDrawingMode()
       }
     })
 
@@ -373,7 +450,17 @@ const viewer = (state, i18n, trussCtl) => {
       const stack = el.parentElement
       const svg = stack && stack.querySelector('#trussOverlay')
       if (svg) {
-        syncTrussOverlay(svg, latestTrussState, camera, el, drawOverlayPreview)
+        const draw = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing
+        syncTrussOverlay(svg, latestTrussState, camera, el, drawOverlayPreview, {
+          showNodeIds: !!(draw && draw.showNodeIds),
+          showElementIds: !!(draw && draw.showElementIds)
+        })
+      }
+      if (stack) {
+        const cursorDrawing = drawMode && drawMode !== 'none' ? 'default' : ''
+        el.style.cursor = cursorDrawing
+        stack.style.cursor = cursorDrawing
+        if (svg) svg.style.cursor = cursorDrawing
       }
 
       window.requestAnimationFrame(updateAndRender)
@@ -431,7 +518,6 @@ const viewer = (state, i18n, trussCtl) => {
         prevTrussEntities = entitiesFromSolids({ color: meshColor }, memberSolids)
         prevTrussKey = trussKey
         prevTrussMeshColorKey = meshColorKey
-        zoomToFit = shouldZoomToFitForSolids(state.viewer.rendering.autoZoom, memberSolids)
         updateView = true
       }
     } else if (prevTrussEntities.length > 0 || prevTrussKey !== '') {
@@ -452,6 +538,8 @@ const viewer = (state, i18n, trussCtl) => {
         updateView = true
       }
     }
+
+    syncGridEntityFromState(state)
 
     viewerOptions.entities = [
       state.viewer.grid.show ? grid : undefined,
@@ -505,7 +593,7 @@ const setup = (element) => {
   // prepare the camera
   let error
   const camera = Object.assign({}, perspectiveCamera.defaults)
-  camera.position = [150, -180, 233]
+  camera.position = [...INITIAL_3D_CAMERA_POSITION]
 
   const { gl, type } = createContext(element)
 

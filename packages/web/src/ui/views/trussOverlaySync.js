@@ -20,6 +20,28 @@ function projectWorld (x, y, z, viewProj, cssW, cssH) {
   return [px, py, ndcz]
 }
 
+/** Screen-space label: fixed px size, horizontal, constant offset from anchor in px. */
+function appendScreenLabel (parent, textStr, x, y, textAnchor, style) {
+  const st = style || {}
+  const fill = st.fill != null ? st.fill : 'rgba(22, 22, 22, 0.96)'
+  const stroke = st.stroke != null ? st.stroke : 'rgba(255,255,255,0.92)'
+  const strokeW = st.strokeWidth != null ? st.strokeWidth : '2.5'
+  const t = document.createElementNS('http://www.w3.org/2000/svg', 'text')
+  t.setAttribute('x', String(x))
+  t.setAttribute('y', String(y))
+  t.setAttribute('font-size', '11')
+  t.setAttribute('font-weight', '700')
+  t.setAttribute('font-family', 'system-ui, "Segoe UI", sans-serif')
+  t.setAttribute('fill', fill)
+  t.setAttribute('stroke', stroke)
+  t.setAttribute('stroke-width', strokeW)
+  t.setAttribute('paint-order', 'stroke fill')
+  t.setAttribute('text-anchor', textAnchor || 'start')
+  t.setAttribute('dominant-baseline', 'alphabetic')
+  t.textContent = textStr
+  parent.appendChild(t)
+}
+
 /**
  * @typedef {Object} TrussOverlayPreview
  * @property {{x:number,y:number,z:number}} [from] rubber-band start (world)
@@ -29,15 +51,25 @@ function projectWorld (x, y, z, viewProj, cssW, cssH) {
  */
 
 /**
+ * @typedef {Object} TrussOverlayLabelOpts
+ * @property {boolean} [showNodeIds]
+ * @property {boolean} [showElementIds]
+ */
+
+/**
  * Redraw truss overlay (screen-space node dots and line members).
  * @param {SVGElement} svgEl
  * @param {Object} truss - { nodes: [{id,x,y,z}], elements: [{id,startId,endId}] }
  * @param {Object} camera - regl perspective camera with view, projection
  * @param {HTMLCanvasElement} canvasEl
  * @param {TrussOverlayPreview|null} [preview]
+ * @param {TrussOverlayLabelOpts} [labelOpts]
  */
-function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview) {
+function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
   if (!svgEl || !truss || !camera || !camera.view || !camera.projection || !canvasEl) return
+
+  const showNodeIds = !!(labelOpts && labelOpts.showNodeIds)
+  const showElementIds = !!(labelOpts && labelOpts.showElementIds)
 
   if (truss.show3dMembers) {
     while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild)
@@ -67,7 +99,7 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview) {
   g.setAttribute('class', 'truss-overlay-layer')
   svgEl.appendChild(g)
 
-  const stroke = 'rgba(0,0,0,0.85)'
+  const stroke = 'rgba(25, 118, 210, 0.92)'
   const fill = 'rgba(220,50,47,0.95)'
 
   truss.elements.forEach((el) => {
@@ -89,24 +121,56 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview) {
     g.appendChild(line)
   })
 
+  if (showElementIds) {
+    truss.elements.forEach((el) => {
+      const a = nodeById[el.startId]
+      const b = nodeById[el.endId]
+      if (!a || !b) return
+      const mx = (a.x + b.x) * 0.5
+      const my = (a.y + b.y) * 0.5
+      const mz = (a.z + b.z) * 0.5
+      const pm = projectWorld(mx, my, mz, viewProj, cssW, cssH)
+      if (!pm) return
+      appendScreenLabel(g, String(el.id), pm[0], pm[1] - 5, 'middle', {
+        fill: 'rgba(25, 118, 210, 0.98)',
+        stroke: 'rgba(255,255,255,0.95)',
+        strokeWidth: '2.5'
+      })
+    })
+  }
+
   truss.nodes.forEach((n) => {
     const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
     if (!p) return
     const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
     c.setAttribute('cx', String(p[0]))
     c.setAttribute('cy', String(p[1]))
-    c.setAttribute('r', '4')
+    c.setAttribute('r', '3')
     c.setAttribute('fill', fill)
     c.setAttribute('stroke', 'rgba(255,255,255,0.9)')
     c.setAttribute('stroke-width', '1')
     c.setAttribute('vector-effect', 'non-scaling-stroke')
     if (preview && preview.highlightNodeId === n.id) {
-      c.setAttribute('r', '7')
+      c.setAttribute('r', '3.5')
       c.setAttribute('stroke', 'rgba(255, 193, 7, 0.95)')
       c.setAttribute('stroke-width', '2')
     }
     g.appendChild(c)
   })
+
+  if (showNodeIds) {
+    const nodeLabelFill = 'rgba(211, 47, 47, 0.98)'
+    const nodeLabelStroke = 'rgba(255,255,255,0.95)'
+    truss.nodes.forEach((n) => {
+      const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
+      if (!p) return
+      appendScreenLabel(g, String(n.id), p[0] + 4, p[1] - 4, 'start', {
+        fill: nodeLabelFill,
+        stroke: nodeLabelStroke,
+        strokeWidth: '2.5'
+      })
+    })
+  }
 
   if (preview && preview.from && preview.to) {
     const pa = projectWorld(preview.from.x, preview.from.y, preview.from.z, viewProj, cssW, cssH)
@@ -136,7 +200,7 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview) {
       const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
       dot.setAttribute('cx', String(pb2[0]))
       dot.setAttribute('cy', String(pb2[1]))
-      dot.setAttribute('r', '5')
+      dot.setAttribute('r', '2.5')
       dot.setAttribute('fill', previewFill)
       dot.setAttribute('stroke', 'rgba(255,255,255,0.85)')
       dot.setAttribute('stroke-width', '1')

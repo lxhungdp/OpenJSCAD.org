@@ -13,7 +13,11 @@ const reducers = {
       },
       grid: {
         show: true,
-        color: [1, 1, 1, 0.1]
+        color: [1, 1, 1, 0.1],
+        /** World extent along X and Y (grid lines from −size/2 to +size/2 on each axis). */
+        size: [200, 200],
+        majorStep: 10,
+        minorStep: 1
       },
       axes: {
         show: true
@@ -25,7 +29,8 @@ const reducers = {
       drawing: {
         mode: 'none',
         snapEnabled: true,
-        gridMinorStep: 0.01
+        showNodeIds: false,
+        showElementIds: false
       }
     }
     const truss = {
@@ -68,6 +73,36 @@ const reducers = {
     return { viewer }
   },
 
+  setGridLayout: (state, patch) => {
+    const g0 = (state.viewer && state.viewer.grid) || {}
+    const grid = Object.assign(
+      {
+        show: true,
+        color: [1, 1, 1, 0.1],
+        size: [200, 200],
+        majorStep: 10,
+        minorStep: 1
+      },
+      g0
+    )
+    const size = Array.isArray(grid.size) ? [...grid.size] : [200, 200]
+    if (typeof patch.minorStep === 'number' && isFinite(patch.minorStep) && patch.minorStep > 0) {
+      grid.minorStep = patch.minorStep
+    }
+    if (typeof patch.majorStep === 'number' && isFinite(patch.majorStep) && patch.majorStep > 0) {
+      grid.majorStep = patch.majorStep
+    }
+    if (typeof patch.sizeX === 'number' && isFinite(patch.sizeX) && patch.sizeX > 0) {
+      size[0] = patch.sizeX
+    }
+    if (typeof patch.sizeY === 'number' && isFinite(patch.sizeY) && patch.sizeY > 0) {
+      size[1] = patch.sizeY
+    }
+    grid.size = size
+    const viewer = Object.assign({}, state.viewer, { grid })
+    return { viewer }
+  },
+
   toPresetView: (state, position) => {
     const camera = Object.assign({}, state.viewer.camera, { position })
     const viewer = Object.assign({}, state.viewer, { camera })
@@ -87,7 +122,7 @@ const reducers = {
 
   setDrawingMode: (state, mode) => {
     const m = (mode === 'node' || mode === 'element' || mode === 'none') ? mode : 'none'
-    const prev = (state.viewer && state.viewer.drawing) || { snapEnabled: true, gridMinorStep: 0.01 }
+    const prev = (state.viewer && state.viewer.drawing) || { snapEnabled: true }
     const drawing = Object.assign({}, prev, { mode: m })
     const viewer = Object.assign({}, state.viewer, { drawing })
     const out = { viewer }
@@ -98,8 +133,22 @@ const reducers = {
   },
 
   toggleDrawSnap: (state, snapEnabled) => {
-    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none', gridMinorStep: 0.01 }
+    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none' }
     const drawing = Object.assign({}, prev, { snapEnabled: !!snapEnabled })
+    const viewer = Object.assign({}, state.viewer, { drawing })
+    return { viewer }
+  },
+
+  toggleShowNodeIds: (state, show) => {
+    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none' }
+    const drawing = Object.assign({}, prev, { showNodeIds: !!show })
+    const viewer = Object.assign({}, state.viewer, { drawing })
+    return { viewer }
+  },
+
+  toggleShowElementIds: (state, show) => {
+    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none' }
+    const drawing = Object.assign({}, prev, { showElementIds: !!show })
     const viewer = Object.assign({}, state.viewer, { drawing })
     return { viewer }
   }
@@ -180,6 +229,41 @@ const actions = ({ sources }) => {
     .thru(withLatestFrom(reducers.toggleDrawSnap, sources.state))
     .map((data) => ({ type: 'toggleDrawSnap', state: data, sink: 'state' }))
 
+  const toggleShowNodeIds$ = most.mergeArray([
+    sources.dom.select('#toggleShowNodeIds').events('change')
+      .map((e) => e.target.checked)
+  ])
+    .thru(withLatestFrom(reducers.toggleShowNodeIds, sources.state))
+    .map((data) => ({ type: 'toggleShowNodeIds', state: data, sink: 'state' }))
+
+  const toggleShowElementIds$ = most.mergeArray([
+    sources.dom.select('#toggleShowElementIds').events('change')
+      .map((e) => e.target.checked)
+  ])
+    .thru(withLatestFrom(reducers.toggleShowElementIds, sources.state))
+    .map((data) => ({ type: 'toggleShowElementIds', state: data, sink: 'state' }))
+
+  const gridLayoutFromInput = (e) => {
+    const id = e.target && e.target.id
+    const v = parseFloat(e.target.value)
+    if (!id || !isFinite(v)) return null
+    if (id === 'gridMinorStep') return { minorStep: v }
+    if (id === 'gridMajorStep') return { majorStep: v }
+    if (id === 'gridSizeX') return { sizeX: v }
+    if (id === 'gridSizeY') return { sizeY: v }
+    return null
+  }
+
+  const setGridLayout$ = most.mergeArray([
+    sources.dom.select('#gridMinorStep').events('input').map(gridLayoutFromInput),
+    sources.dom.select('#gridMajorStep').events('input').map(gridLayoutFromInput),
+    sources.dom.select('#gridSizeX').events('input').map(gridLayoutFromInput),
+    sources.dom.select('#gridSizeY').events('input').map(gridLayoutFromInput)
+  ])
+    .filter((p) => p !== null)
+    .thru(withLatestFrom(reducers.setGridLayout, sources.state))
+    .map((data) => ({ type: 'setGridLayout', state: data, sink: 'state' }))
+
   // all other viewer actions, triggered from elsewhere
   const otherActions = ['toPresetView']
   const otherViewerActions$ = sources.actions
@@ -197,6 +281,9 @@ const actions = ({ sources }) => {
     setViewMode$,
     setDrawingMode$,
     toggleDrawSnap$,
+    toggleShowNodeIds$,
+    toggleShowElementIds$,
+    setGridLayout$,
     otherViewerActions$
   }
 }

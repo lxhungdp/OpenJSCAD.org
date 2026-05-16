@@ -495,7 +495,9 @@ const addDistributedLoad = (state, payload) => {
       distributed: (s.loads.distributed || []).concat([{
         id,
         elementId,
-        qy: Number(payload.qy) || 0
+        qx: Number(payload.qx) || 0,
+        qy: Number(payload.qy) || 0,
+        qz: Number(payload.qz) || 0
       }])
     }),
     nextDistributedLoadId: id + 1
@@ -532,6 +534,8 @@ const setStructuresModal = (state, modal) => {
 const setStructuresView = (state, view) => withStructure(state, { structuresView: view })
 const setBoundariesTab = (state, tab) => withStructure(state, { boundariesTab: tab })
 const setPropertiesTab = (state, tab) => withStructure(state, { propertiesTab: tab })
+const setLoadsTab = (state, tab) =>
+  withStructure(state, { loadsTab: tab === 'element' ? 'element' : 'node' })
 
 /** Full structure replace (panel batch commit) */
 const replaceStructure = (state, structure) =>
@@ -573,10 +577,13 @@ const clearStructure = (state) => {
  *   nodes?: Array<{id:number,x:number,y:number,z:number}>,
  *   restraints?: Array<{nodeId:number,dofs:boolean[]}>,
  *   nodalLoads?: Array<{nodeId:number,Fx?:number,Fy?:number,Fz?:number,Mx?:number,My?:number,Mz?:number}>,
+ *   distributedLoads?: Array<{elementId:number,qx?:number,qy?:number,qz?:number}>,
  *   elements?: Array<{id:number,iNode?:number,jNode?:number,matId?:string,secId?:string}>,
  *   releases?: Array<{elementId:number,end:string}>
  * }} payload
  */
+const { nodalLoadIsEmpty, distributedLoadIsEmpty } = require('../loads/loadUtils')
+
 const applySelectionPanel = (state, payload) => {
   const p = payload || {}
   let next = state
@@ -606,10 +613,28 @@ const applySelectionPanel = (state, payload) => {
       if (!load || !isFinite(Number(load.nodeId))) continue
       const s = ensure(next)
       const existing = (s.loads.nodal || []).find((l) => Number(l.nodeId) === Number(load.nodeId))
-      if (existing) {
+      if (nodalLoadIsEmpty(load)) {
+        if (existing) next = removeNodalLoad(next, existing.id)
+      } else if (existing) {
         next = updateNodalLoad(next, Object.assign({ id: existing.id }, load))
       } else {
         next = addNodalLoad(next, load)
+      }
+    }
+  }
+
+  if (Array.isArray(p.distributedLoads)) {
+    for (const load of p.distributedLoads) {
+      if (!load || !isFinite(Number(load.elementId))) continue
+      const s = ensure(next)
+      const eid = Number(load.elementId)
+      const existing = (s.loads.distributed || []).find((l) => Number(l.elementId) === eid)
+      if (distributedLoadIsEmpty(load)) {
+        if (existing) next = removeDistributedLoad(next, existing.id)
+      } else if (existing) {
+        next = updateDistributedLoad(next, Object.assign({ id: existing.id, elementId: eid }, load))
+      } else {
+        next = addDistributedLoad(next, load)
       }
     }
   }
@@ -1089,6 +1114,7 @@ module.exports = {
   setStructuresView,
   setBoundariesTab,
   setPropertiesTab,
+  setLoadsTab,
   replaceStructure,
   importStructure,
   clearStructure,

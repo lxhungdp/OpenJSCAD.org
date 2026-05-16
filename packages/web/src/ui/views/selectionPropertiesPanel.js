@@ -10,6 +10,7 @@ const {
   restraintDofs,
   effectivePresetForRestraint
 } = require('../restraints/restraintDofs')
+const { activeDistribAxes, hasDistributedLoad } = require('../loads/loadUtils')
 
 const DOF_LABELS = ['Ux', 'Uy', 'Uz', 'Rx', 'Ry', 'Rz']
 
@@ -90,7 +91,7 @@ const runApply = (panel, ctx) => {
     z = zInp ? Number(zInp.value) : NaN
   }
 
-  const panelPayload = { nodes: [], restraints: [], nodalLoads: [], elements: [], releases: [] }
+  const panelPayload = { nodes: [], restraints: [], nodalLoads: [], distributedLoads: [], elements: [], releases: [] }
 
   if (nextNodes.length && nodeWrap) {
     nextNodes.forEach((id) => {
@@ -178,6 +179,22 @@ const runApply = (panel, ctx) => {
     nextElems.forEach((eid) => {
       panelPayload.releases.push({ elementId: Number(eid), end: relEnd })
     })
+
+    const dloadBox = elemPanel.querySelector('.sel-props-element-load')
+    if (dloadBox) {
+      const axisRadio = dloadBox.querySelector('[data-sel-dload-axis]:checked')
+      const axis = axisRadio && axisRadio.value ? axisRadio.value : 'qy'
+      const valInp = dloadBox.querySelector('[data-sel-dload-value]')
+      const val = valInp ? Number(valInp.value) : NaN
+      const magnitude = isFinite(val) ? val : 0
+      nextElems.forEach((eid) => {
+        const patch = { elementId: Number(eid), qx: 0, qy: 0, qz: 0 }
+        if (magnitude !== 0 && (axis === 'qx' || axis === 'qy' || axis === 'qz')) {
+          patch[axis] = magnitude
+        }
+        panelPayload.distributedLoads.push(patch)
+      })
+    }
   }
 
   selPropsDebug('apply', {
@@ -193,6 +210,7 @@ const runApply = (panel, ctx) => {
   const hasStructureEdits = panelPayload.nodes.length > 0 ||
     panelPayload.restraints.length > 0 ||
     panelPayload.nodalLoads.length > 0 ||
+    panelPayload.distributedLoads.length > 0 ||
     panelPayload.elements.length > 0 ||
     panelPayload.releases.length > 0
 
@@ -568,6 +586,44 @@ const releaseRadioRow = (selected) => html`
   </div>
 `
 
+const firstDistributedLoadForElement = (struct, elementId) => {
+  const loads = (struct.loads && struct.loads.distributed) || []
+  return loads.find((l) => Number(l.elementId) === Number(elementId))
+}
+
+const commonDistributedLoad = (struct, elementIds) => {
+  if (!elementIds.length) return { axis: 'qy', value: '' }
+  const snaps = elementIds.map((eid) => {
+    const l = firstDistributedLoadForElement(struct, eid)
+    if (!l || !hasDistributedLoad(l)) return null
+    const axes = activeDistribAxes(l)
+    if (axes.length !== 1) return null
+    const axis = axes[0]
+    return { axis, value: Number(l[axis]) || 0 }
+  })
+  const defined = snaps.filter(Boolean)
+  if (!defined.length) return { axis: 'qy', value: '' }
+  const axis0 = defined[0].axis
+  if (!defined.every((d) => d.axis === axis0)) return { axis: 'qy', value: '' }
+  const vals = defined.map((d) => d.value)
+  const s = new Set(vals.map((v) => String(v)))
+  return { axis: axis0, value: s.size === 1 ? String(vals[0]) : '' }
+}
+
+const DISTRIB_LOAD_AXES = ['qx', 'qy', 'qz']
+
+const distributedLoadRadioRow = (selectedAxis) => html`
+  <div class="sel-dload-radios" role="group" aria-label="Load direction">
+    ${DISTRIB_LOAD_AXES.map((axis) => html`
+      <label class="sel-dload-opt">
+        <input type="radio" name="sel-dload-axis" value="${axis}" data-sel-dload-axis=""
+          ${selectedAxis === axis ? 'checked' : ''} />
+        <span>${axis}</span>
+      </label>
+    `)}
+  </div>
+`
+
 const commonReleaseEnd = (struct, elementIds) => {
   if (!elementIds.length) return 'none'
   const ends = elementIds.map((eid) => {
@@ -670,6 +726,7 @@ const selectionPropertiesPanel = (state, i18n, structureCtl, viewerUiCtl) => {
   const secVal = commonStringOnElements(elems, 'secId')
 
   const nl = commonNodalLoadValues(struct, nodeIds)
+  const dload = commonDistributedLoad(struct, elementIds)
   const relEnd = commonReleaseEnd(struct, elementIds)
   const restPreset = commonRestraintPreset(struct, nodeIds)
 
@@ -802,6 +859,18 @@ const selectionPropertiesPanel = (state, i18n, structureCtl, viewerUiCtl) => {
               <section class="sel-section">
                 <p class="sel-section__label">${i18n`Boundaries`}</p>
                 ${releaseRadioRow(relEnd)}
+              </section>
+              <section class="sel-section">
+                <p class="sel-section__label">${i18n`Element load`}</p>
+                <div class="sel-props-element-load">
+                  ${distributedLoadRadioRow(dload.axis)}
+                  <div class="sel-labeled-row sel-labeled-row--1">
+                    <div class="sel-labeled-cell">
+                      <span class="sel-k">${i18n`Value`}</span>
+                      <input type="number" class="sel-input" data-sel-dload-value="" value="${dload.value}" step="any" />
+                    </div>
+                  </div>
+                </div>
               </section>
               <section class="sel-section">
                 <p class="sel-section__label">${i18n`Generate`}</p>

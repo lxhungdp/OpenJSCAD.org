@@ -47,6 +47,7 @@ const displayPanel = (state, i18n, structureCallbacktoStream) => {
         <div class="display-menu-row" role="group" aria-label="Boundaries">
           <label class="structures-menu-item structures-menu-item--check"><input type="checkbox" id="displayShowRestraints" checked=${d.showRestraints !== false} /> <span>${i18n`Restraints`}</span></label>
           <label class="structures-menu-item structures-menu-item--check"><input type="checkbox" id="displayShowReleased" checked=${d.showReleased !== false} /> <span>${i18n`Released`}</span></label>
+          <label class="structures-menu-item structures-menu-item--check"><input type="checkbox" id="displayShowLoads" checked=${d.showLoads !== false} /> <span>${i18n`Loads`}</span></label>
         </div>
         <div class="display-menu-divider" role="presentation"></div>
         <label class="structures-menu-item structures-menu-item--check display-menu-item-full">

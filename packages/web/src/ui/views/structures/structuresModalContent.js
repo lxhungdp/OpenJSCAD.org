@@ -22,6 +22,7 @@ const {
   inferPresetFromDofs,
   restraintDofs
 } = require('../../restraints/restraintDofs')
+const { hasNodalLoad, hasDistributedLoad } = require('../../loads/loadUtils')
 
 const DOF_LABELS = ['ux', 'uy', 'uz', 'rx', 'ry', 'rz']
 
@@ -218,41 +219,67 @@ const buildPropertiesBody = (s, i18n) => {
     </div>`
 }
 
+const emptyLoadHint = (i18n, label) => html`
+  <p class="struct-hint structures-modal-hint">${i18n`No ${label} defined.`}</p>`
+
 const buildLoadBody = (s, i18n) => {
-  const nLoadRows = (s.loads.nodal || []).map((l) => html`
+  const lTab = s.loadsTab || 'node'
+  const nodalWithLoad = (s.loads.nodal || []).filter(hasNodalLoad)
+  const distribWithLoad = (s.loads.distributed || []).filter(hasDistributedLoad)
+
+  const nLoadRows = nodalWithLoad.map((l) => html`
     <tr data-id="${l.id}">
       <td>${l.id}</td>
       <td><input type="number" class="struct-nload-in structures-modal-field" data-k="nodeId" value="${l.nodeId}" /></td>
       <td><input type="number" step="any" class="struct-nload-in structures-modal-field" data-k="Fx" value="${l.Fx}" /></td>
       <td><input type="number" step="any" class="struct-nload-in structures-modal-field" data-k="Fy" value="${l.Fy}" /></td>
-      <td><input type="number" step="any" class="struct-nload-in structures-modal-field" data-k="Fz" value="${l.Fz}" /></td>
+      <td><input type="number" step="any" class="struct-nload-in structures-modal-field" data-k="Fz" value="${l.Fz != null ? l.Fz : 0}" /></td>
+      <td><input type="number" step="any" class="struct-nload-in structures-modal-field" data-k="Mx" value="${l.Mx != null ? l.Mx : 0}" /></td>
+      <td><input type="number" step="any" class="struct-nload-in structures-modal-field" data-k="My" value="${l.My != null ? l.My : 0}" /></td>
+      <td><input type="number" step="any" class="struct-nload-in structures-modal-field" data-k="Mz" value="${l.Mz != null ? l.Mz : 0}" /></td>
       <td class="structures-modal-actions-cell">
         <button type="button" class="struct-remove-nload structures-modal-icon-btn" data-id="${l.id}" title="Remove" aria-label="Remove">×</button>
       </td>
     </tr>`)
-  const dLoadRows = (s.loads.distributed || []).map((l) => html`
+  const dLoadRows = distribWithLoad.map((l) => html`
     <tr data-id="${l.id}">
       <td>${l.id}</td>
       <td><input type="number" class="struct-dload-in structures-modal-field" data-k="elementId" value="${l.elementId}" /></td>
-      <td><input type="number" step="any" class="struct-dload-in structures-modal-field" data-k="qy" value="${l.qy}" /></td>
+      <td><input type="number" step="any" class="struct-dload-in structures-modal-field" data-k="qx" value="${l.qx != null ? l.qx : 0}" /></td>
+      <td><input type="number" step="any" class="struct-dload-in structures-modal-field" data-k="qy" value="${l.qy != null ? l.qy : 0}" /></td>
+      <td><input type="number" step="any" class="struct-dload-in structures-modal-field" data-k="qz" value="${l.qz != null ? l.qz : 0}" /></td>
       <td class="structures-modal-actions-cell">
         <button type="button" class="struct-remove-dload structures-modal-icon-btn" data-id="${l.id}" title="Remove" aria-label="Remove">×</button>
       </td>
     </tr>`)
-  const nHead = html`<th>id</th><th>node</th><th>Fx</th><th>Fy</th><th>Fz</th><th class="structures-modal-actions-col"></th>`
-  const dHead = html`<th>id</th><th>elem</th><th>qy</th><th class="structures-modal-actions-col"></th>`
+  const nHead = html`
+    <th>id</th><th>node</th><th>Fx</th><th>Fy</th><th>Fz</th><th>Mx</th><th>My</th><th>Mz</th><th class="structures-modal-actions-col"></th>`
+  const dHead = html`<th>id</th><th>elem</th><th>qx</th><th>qy</th><th>qz</th><th class="structures-modal-actions-col"></th>`
+
+  const nodePanel = html`
+    <div class="structures-modal-tab-panel${lTab === 'node' ? '' : ' structures-modal-tab-panel--hidden'}" role="tabpanel">
+      <p class="struct-hint structures-modal-hint">${i18n`Only rows with non-zero load values are listed.`}</p>
+      ${nodalWithLoad.length ? tableShell(nHead, nLoadRows) : emptyLoadHint(i18n, 'node loads')}
+      <button type="button" class="structures-modal-action" data-struct-op="addNodalLoad">${i18n`Add node load`}</button>
+    </div>`
+
+  const elementPanel = html`
+    <div class="structures-modal-tab-panel${lTab === 'element' ? '' : ' structures-modal-tab-panel--hidden'}" role="tabpanel">
+      <p class="struct-hint structures-modal-hint">${i18n`Only rows with non-zero load values are listed.`}</p>
+      ${distribWithLoad.length ? tableShell(dHead, dLoadRows) : emptyLoadHint(i18n, 'element loads')}
+      <button type="button" class="structures-modal-action" data-struct-op="addDistributedLoad">${i18n`Add element load`}</button>
+    </div>`
+
   return html`
     <div class="structures-modal-body structures-modal-body--loads">
-      <section class="structures-modal-section">
-        <div class="structures-modal-section-title">${i18n`Nodal loads`}</div>
-        ${tableShell(nHead, nLoadRows)}
-        <button type="button" class="structures-modal-action" data-struct-op="addNodalLoad">${i18n`Add nodal load`}</button>
-      </section>
-      <section class="structures-modal-section">
-        <div class="structures-modal-section-title">${i18n`Distributed loads`}</div>
-        ${tableShell(dHead, dLoadRows)}
-        <button type="button" class="structures-modal-action" data-struct-op="addDistributedLoad">${i18n`Add distributed load`}</button>
-      </section>
+      <div class="structures-modal-tabs" role="tablist">
+        <button type="button" role="tab" class="structures-modal-tab${lTab === 'node' ? ' structures-modal-tab--active' : ''}"
+          data-loads-tab="node">${i18n`Node`}</button>
+        <button type="button" role="tab" class="structures-modal-tab${lTab === 'element' ? ' structures-modal-tab--active' : ''}"
+          data-loads-tab="element">${i18n`Element`}</button>
+      </div>
+      ${nodePanel}
+      ${elementPanel}
     </div>`
 }
 

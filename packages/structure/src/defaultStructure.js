@@ -33,7 +33,9 @@ const defaultStructure = () => ({
   /** boundaries sub-tab: restraint | release */
   boundariesTab: 'restraint',
   /** properties sub-tab: material | sectional */
-  propertiesTab: 'material'
+  propertiesTab: 'material',
+  /** loads modal sub-tab: node | element */
+  loadsTab: 'node'
 })
 
 module.exports = defaultStructure

@@ -23,7 +23,8 @@ const PERSIST_KEYS = [
   'structuresModal',
   'structuresView',
   'boundariesTab',
-  'propertiesTab'
+  'propertiesTab',
+  'loadsTab'
 ]
 
 const cloneRow = (row) => Object.assign({}, row)

@@ -89,6 +89,8 @@ const reduceStructureOp = (state, op) => {
       return reducers.setBoundariesTab(state, op.tab)
     case 'setPropertiesTab':
       return reducers.setPropertiesTab(state, op.tab)
+    case 'setLoadsTab':
+      return reducers.setLoadsTab(state, op.tab)
     case 'replaceStructure':
       return reducers.replaceStructure(state, op.structure)
     case 'importStructure':

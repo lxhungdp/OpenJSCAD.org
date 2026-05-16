@@ -642,6 +642,8 @@ const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
       const stack = el.parentElement
       const svg = stack && stack.querySelector('#trussOverlay')
       if (svg && latestAppState) {
+        // Overlay projects every frame; keep view matrix in sync even when WebGL skips a render pass.
+        perspectiveCamera.update(camera)
         latestStructureState = structureReducers.ensure(latestAppState)
         const draw = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing
         const selection = (latestAppState && latestAppState.viewer && latestAppState.viewer.selection) || {}
@@ -651,7 +653,8 @@ const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
           showSecId: !!(draw && draw.showSecId),
           showMatId: !!(draw && draw.showMatId),
           showRestraints: !draw || draw.showRestraints !== false,
-          showReleased: !draw || draw.showReleased !== false
+          showReleased: !draw || draw.showReleased !== false,
+          showLoads: !draw || draw.showLoads !== false
         }, {
           marquee: marqueeDragging && marqueeDraft ? Object.assign({}, marqueeDraft) : null,
           selectedNodeIds: selection.selectedNodeIds || [],
@@ -725,7 +728,10 @@ const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
       const meshColorKey = JSON.stringify(meshColor)
       if (structureKey !== prevStructureKey || meshColorKey !== prevStructureMeshColorKey) {
         const memberSolids = structureMembersToSolids(trStruct)
-        prevStructureEntities = entitiesFromSolids({ color: meshColor }, memberSolids)
+        prevStructureEntities = entitiesFromSolids(
+          { color: meshColor, smoothNormals: false },
+          memberSolids
+        )
         prevStructureKey = structureKey
         prevStructureMeshColorKey = meshColorKey
         updateView = true

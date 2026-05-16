@@ -5,14 +5,20 @@ const {
   normalizeReleaseEnd,
   DEFAULT_STYLE: releaseGlyphStyle
 } = require('../releases/releaseGlyphs')
+const {
+  drawNodalLoadsForNode,
+  drawDistributedLoadsForElement,
+  DEFAULT_STYLE: loadGlyphStyle
+} = require('../loads/loadGlyphs')
+const { hasNodalLoad, hasDistributedLoad } = require('../loads/loadUtils')
+const { nodeByIdFromNodes } = require('../structure/structureMemberChains')
 
 /** Epsilon outside NDC Z = ±1 before discarding (ortho top view often sits on clip plane). */
 const PROJ_Z_REJECT_EPS = 0.02
-/** Clamp NDC XY so lines near frustum edge still draw (strict reject caused missing members). */
-const PROJ_XY_CLAMP = 1.12
 
 /**
  * Project world point to CSS pixel coordinates relative to the canvas element.
+ * No NDC XY clamp — clamping shared joints differently was bending collinear members when zoomed.
  * @returns {number[]|null} [px, py, ndcz] or null if behind camera / invalid
  */
 function projectWorld (x, y, z, viewProj, cssW, cssH) {
@@ -27,11 +33,19 @@ function projectWorld (x, y, z, viewProj, cssW, cssH) {
   if (!isFinite(ndcx) || !isFinite(ndcy) || !isFinite(ndcz)) return null
   if (ndcz < -1 - PROJ_Z_REJECT_EPS || ndcz > 1 + PROJ_Z_REJECT_EPS) return null
   const ndczClamped = Math.max(-1, Math.min(1, ndcz))
-  const ndcxClamped = Math.max(-PROJ_XY_CLAMP, Math.min(PROJ_XY_CLAMP, ndcx))
-  const ndcyClamped = Math.max(-PROJ_XY_CLAMP, Math.min(PROJ_XY_CLAMP, ndcy))
-  const px = (ndcxClamped * 0.5 + 0.5) * cssW
-  const py = (1 - (ndcyClamped * 0.5 + 0.5)) * cssH
+  const px = (ndcx * 0.5 + 0.5) * cssW
+  const py = (1 - (ndcy * 0.5 + 0.5)) * cssH
   return [px, py, ndczClamped]
+}
+
+/** Project every node once per frame (shared joints use identical screen coords). */
+const projectAllNodes = (nodes, viewProj, cssW, cssH) => {
+  const screen = new Map()
+  for (const n of nodes || []) {
+    const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
+    screen.set(Number(n.id), p)
+  }
+  return screen
 }
 
 /** Screen-space label: fixed px size, horizontal, constant offset from anchor in px. */
@@ -72,6 +86,7 @@ function appendScreenLabel (parent, textStr, x, y, textAnchor, style) {
  * @property {boolean} [showMatId]
  * @property {boolean} [showRestraints]
  * @property {boolean} [showReleased]
+ * @property {boolean} [showLoads]
  */
 
 /**
@@ -93,6 +108,7 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
   const showMatId = !!(labelOpts && labelOpts.showMatId)
   const showRestraints = labelOpts && labelOpts.showRestraints === false ? false : true
   const showReleased = labelOpts && labelOpts.showReleased === false ? false : true
+  const showLoads = labelOpts && labelOpts.showLoads === false ? false : true
 
   const selNodeSet = new Set((selectionOpts && selectionOpts.selectedNodeIds) || [])
   const selElemSet = new Set((selectionOpts && selectionOpts.selectedElementIds) || [])
@@ -103,8 +119,8 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
   }
 
   const rect = canvasEl.getBoundingClientRect()
-  const cssW = rect.width
-  const cssH = rect.height
+  const cssW = canvasEl.clientWidth || rect.width
+  const cssH = canvasEl.clientHeight || rect.height
   if (cssW <= 0 || cssH <= 0) return
 
   svgEl.setAttribute('width', String(cssW))
@@ -114,8 +130,8 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
   const viewProj = mat4.create()
   mat4.multiply(viewProj, camera.projection, camera.view)
 
-  const nodeById = {}
-  truss.nodes.forEach((n) => { nodeById[n.id] = n })
+  const nodeById = nodeByIdFromNodes(truss.nodes)
+  const screenNode = projectAllNodes(truss.nodes, viewProj, cssW, cssH)
 
   while (svgEl.firstChild) {
     svgEl.removeChild(svgEl.firstChild)
@@ -128,14 +144,12 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
   const stroke = 'rgba(25, 118, 210, 0.92)'
   const fill = 'rgba(220,50,47,0.95)'
 
+  // One full segment per element (node i → j), no trim, no polyline merge — isolates bend-at-joint bugs.
   truss.elements.forEach((el) => {
     const iRef = el.iNode != null ? el.iNode : el.startId
     const jRef = el.jNode != null ? el.jNode : el.endId
-    const a = nodeById[iRef]
-    const b = nodeById[jRef]
-    if (!a || !b) return
-    const pa = projectWorld(a.x, a.y, a.z, viewProj, cssW, cssH)
-    const pb = projectWorld(b.x, b.y, b.z, viewProj, cssW, cssH)
+    const pa = screenNode.get(Number(iRef))
+    const pb = screenNode.get(Number(jRef))
     if (!pa || !pb) return
     const isSel = selElemSet.has(Number(el.id))
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
@@ -145,7 +159,7 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
     line.setAttribute('y2', String(pb[1]))
     line.setAttribute('stroke', isSel ? 'rgba(255, 193, 7, 0.98)' : stroke)
     line.setAttribute('stroke-width', isSel ? '3' : '1.5')
-    line.setAttribute('stroke-linecap', 'round')
+    line.setAttribute('stroke-linecap', 'butt')
     line.setAttribute('vector-effect', 'non-scaling-stroke')
     line.setAttribute('shape-rendering', 'geometricPrecision')
     g.appendChild(line)
@@ -161,8 +175,8 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
     truss.elements.forEach((el) => {
       const iRef = el.iNode != null ? el.iNode : el.startId
       const jRef = el.jNode != null ? el.jNode : el.endId
-      const a = nodeById[iRef]
-      const b = nodeById[jRef]
+      const a = nodeById.get(Number(iRef))
+      const b = nodeById.get(Number(jRef))
       if (!a || !b) return
       const parts = []
       if (showElementIds) parts.push(String(el.id))
@@ -178,6 +192,14 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
     })
   }
 
+  if (showLoads && truss.loads && truss.loads.distributed && truss.loads.distributed.length) {
+    truss.loads.distributed.filter(hasDistributedLoad).forEach((dl) => {
+      const el = truss.elements.find((e) => Number(e.id) === Number(dl.elementId))
+      if (!el) return
+      drawDistributedLoadsForElement(g, el, nodeById, dl, projectWorld, viewProj, cssW, cssH, loadGlyphStyle)
+    })
+  }
+
   if (showReleased && truss.releases && truss.releases.length) {
     truss.releases.forEach((rel) => {
       const end = normalizeReleaseEnd(rel.end)
@@ -186,8 +208,8 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
       if (!el) return
       const iRef = el.iNode != null ? el.iNode : el.startId
       const jRef = el.jNode != null ? el.jNode : el.endId
-      const a = nodeById[iRef]
-      const b = nodeById[jRef]
+      const a = nodeById.get(Number(iRef))
+      const b = nodeById.get(Number(jRef))
       if (!a || !b) return
       const pa = projectWorld(a.x, a.y, a.z, viewProj, cssW, cssH)
       const pb = projectWorld(b.x, b.y, b.z, viewProj, cssW, cssH)
@@ -196,9 +218,17 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
     })
   }
 
+  if (showLoads && truss.loads && truss.loads.nodal && truss.loads.nodal.length) {
+    truss.loads.nodal.filter(hasNodalLoad).forEach((nl) => {
+      const n = nodeById.get(Number(nl.nodeId))
+      if (!n) return
+      drawNodalLoadsForNode(g, n, nl, projectWorld, viewProj, cssW, cssH, loadGlyphStyle)
+    })
+  }
+
   if (showRestraints && truss.restraints && truss.restraints.length) {
     truss.restraints.forEach((r) => {
-      const n = nodeById[r.nodeId]
+      const n = nodeById.get(Number(r.nodeId))
       if (!n) return
       const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
       if (!p) return
@@ -207,7 +237,7 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
   }
 
   truss.nodes.forEach((n) => {
-    const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
+    const p = screenNode.get(Number(n.id))
     if (!p) return
     const isSel = selNodeSet.has(Number(n.id))
     const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
@@ -235,7 +265,7 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
     const nodeLabelFill = 'rgba(211, 47, 47, 0.98)'
     const nodeLabelStroke = 'rgba(255,255,255,0.95)'
     truss.nodes.forEach((n) => {
-      const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
+      const p = screenNode.get(Number(n.id))
       if (!p) return
       appendScreenLabel(g, String(n.id), p[0] + 4, p[1] - 4, 'start', {
         fill: nodeLabelFill,

@@ -34,7 +34,8 @@ const reducers = {
         showSecId: false,
         showMatId: false,
         showRestraints: true,
-        showReleased: true
+        showReleased: true,
+        showLoads: true
       },
       selection: {
         mode: 'none',
@@ -178,6 +179,13 @@ const reducers = {
     const drawing = Object.assign({}, prev, { showReleased: !!show })
     const viewer = Object.assign({}, state.viewer, { drawing })
     return { viewer }
+  },
+
+  toggleShowLoads: (state, show) => {
+    const prev = (state.viewer && state.viewer.drawing) || { mode: 'none' }
+    const drawing = Object.assign({}, prev, { showLoads: !!show })
+    const viewer = Object.assign({}, state.viewer, { drawing })
+    return { viewer }
   }
 
 }
@@ -310,6 +318,13 @@ const actions = ({ sources }) => {
     .thru(withLatestFrom(reducers.toggleShowReleased, sources.state))
     .map((data) => ({ type: 'toggleShowReleased', state: data, sink: 'state' }))
 
+  const toggleShowLoads$ = most.mergeArray([
+    sources.dom.select('#displayShowLoads').events('change')
+      .map((e) => e.target.checked)
+  ])
+    .thru(withLatestFrom(reducers.toggleShowLoads, sources.state))
+    .map((data) => ({ type: 'toggleShowLoads', state: data, sink: 'state' }))
+
   const gridLayoutFromInput = (e) => {
     const id = e.target && e.target.id
     const v = parseFloat(e.target.value)
@@ -354,6 +369,7 @@ const actions = ({ sources }) => {
     toggleShowMatId$,
     toggleShowRestraints$,
     toggleShowReleased$,
+    toggleShowLoads$,
     setGridLayout$,
     otherViewerActions$
   }

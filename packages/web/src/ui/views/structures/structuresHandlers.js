@@ -1,5 +1,6 @@
 const DOF_LABELS = ['ux', 'uy', 'uz', 'rx', 'ry', 'rz']
 const { inferPresetFromDofs, dofsForPreset, isFreeDofs } = require('../../restraints/restraintDofs')
+const { nodalLoadIsEmpty, distributedLoadIsEmpty } = require('../../loads/loadUtils')
 const { downloadStructureJson, pickStructureJsonFile } = require('./structureFileActions')
 const { getLiveStructure } = require('../../structure/structureLiveAccess')
 
@@ -76,8 +77,14 @@ const attachHandlers = (root, ctl) => {
       if (op === 'addSection') cb({ op: 'addSection' })
       if (op === 'addRestraint') cb({ op: 'addRestraint', payload: { nodeId: btn.getAttribute('data-node-id') } })
       if (op === 'addRelease') cb({ op: 'addRelease', payload: { elementId: btn.getAttribute('data-element-id') } })
-      if (op === 'addNodalLoad') cb({ op: 'addNodalLoad' })
-      if (op === 'addDistributedLoad') cb({ op: 'addDistributedLoad' })
+      if (op === 'addNodalLoad') {
+        cb({ op: 'addNodalLoad', payload: { Fy: 1 } })
+        cb({ op: 'setLoadsTab', tab: 'node' })
+      }
+      if (op === 'addDistributedLoad') {
+        cb({ op: 'addDistributedLoad', payload: { qy: 1 } })
+        cb({ op: 'setLoadsTab', tab: 'element' })
+      }
     }
   })
 
@@ -121,6 +128,13 @@ const attachHandlers = (root, ctl) => {
     btn.onclick = (e) => {
       e.preventDefault()
       cb({ op: 'setPropertiesTab', tab: btn.getAttribute('data-properties-tab') })
+    }
+  })
+
+  root.querySelectorAll('[data-loads-tab]').forEach((btn) => {
+    btn.onclick = (e) => {
+      e.preventDefault()
+      cb({ op: 'setLoadsTab', tab: btn.getAttribute('data-loads-tab') })
     }
   })
 
@@ -335,7 +349,8 @@ const attachHandlers = (root, ctl) => {
         const el = tr.querySelector(`[data-k="${k}"]`)
         payload[k] = Number(el && el.value) || 0
       })
-      cb({ op: 'updateNodalLoad', payload })
+      if (nodalLoadIsEmpty(payload)) cb({ op: 'removeNodalLoad', id })
+      else cb({ op: 'updateNodalLoad', payload })
     }
   })
 
@@ -343,14 +358,16 @@ const attachHandlers = (root, ctl) => {
     inp.onchange = (ev) => {
       const tr = ev.target.closest('tr')
       if (!tr) return
-      cb({
-        op: 'updateDistributedLoad',
-        payload: {
-          id: Number(tr.getAttribute('data-id')),
-          elementId: Number(tr.querySelector('[data-k="elementId"]').value),
-          qy: Number(tr.querySelector('[data-k="qy"]').value) || 0
-        }
-      })
+      const id = Number(tr.getAttribute('data-id'))
+      const payload = {
+        id,
+        elementId: Number(tr.querySelector('[data-k="elementId"]').value),
+        qx: Number(tr.querySelector('[data-k="qx"]').value) || 0,
+        qy: Number(tr.querySelector('[data-k="qy"]').value) || 0,
+        qz: Number(tr.querySelector('[data-k="qz"]').value) || 0
+      }
+      if (distributedLoadIsEmpty(payload)) cb({ op: 'removeDistributedLoad', id })
+      else cb({ op: 'updateDistributedLoad', payload })
     }
   })
 }

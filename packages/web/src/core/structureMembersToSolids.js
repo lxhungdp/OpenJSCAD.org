@@ -1,5 +1,7 @@
 /**
  * Build 3D solids for structural members from global structure model.
+ * Members span exactly from i-node to j-node; section orientation is stable
+ * along a line so collinear elements with opposite i/j still align at joints.
  */
 const { primitives, transforms, maths, extrusions } = require('@jscad/modeling')
 const { cuboid, cylinder } = primitives
@@ -12,33 +14,57 @@ const { elementINode, elementJNode, nodeByIdMap, sectionById, defaultMatSecIds }
 
 const EPS = 1e-6
 
-const rotationBeamSectionWorldZStable = (d) => {
+/** Flip direction so the dominant component is positive (same line, either i→j). */
+const canonicalLineAxis = (d) => {
+  const out = vec3.clone(d)
+  const ax = Math.abs(out[0])
+  const ay = Math.abs(out[1])
+  const az = Math.abs(out[2])
+  if (ax >= ay && ax >= az) {
+    if (out[0] < 0) vec3.negate(out, out)
+  } else if (ay >= ax && ay >= az) {
+    if (out[1] < 0) vec3.negate(out, out)
+  } else if (out[2] < 0) {
+    vec3.negate(out, out)
+  }
+  return vec3.normalize(vec3.create(), out)
+}
+
+/**
+ * Local +Z = placementDir (pa→pb). Up/side use canonical line axis so joints
+ * between collinear elements do not twist 180° when i/j is reversed.
+ */
+const memberRotationPaToPb = (placementDir) => {
+  const z = placementDir
+  const lineAxis = canonicalLineAxis(z)
   const ez = [0, 0, 1]
-  const up = vec3.subtract(vec3.create(), ez, vec3.scale(vec3.create(), d, vec3.dot(ez, d)))
+  let ref = ez
+  if (Math.abs(vec3.dot(lineAxis, ez)) > 0.99) ref = [1, 0, 0]
+  let up = vec3.subtract(vec3.create(), ref, vec3.scale(vec3.create(), lineAxis, vec3.dot(ref, lineAxis)))
   if (vec3.squaredLength(up) < 1e-10) {
-    const ex = [1, 0, 0]
-    vec3.subtract(up, ex, vec3.scale(vec3.create(), d, vec3.dot(ex, d)))
-    if (vec3.squaredLength(up) < 1e-10) {
-      const ey = [0, 1, 0]
-      vec3.subtract(up, ey, vec3.scale(vec3.create(), d, vec3.dot(ey, d)))
-    }
+    ref = [0, 1, 0]
+    vec3.subtract(up, ref, vec3.scale(vec3.create(), lineAxis, vec3.dot(ref, lineAxis)))
   }
   vec3.normalize(up, up)
-  const side = vec3.normalize(vec3.create(), vec3.cross(vec3.create(), d, up))
+  if (up[2] < 0) vec3.negate(up, up)
+
+  let side = vec3.normalize(vec3.create(), vec3.cross(vec3.create(), z, up))
+  const ey = [0, 1, 0]
+  if (vec3.dot(side, ey) < 0) vec3.negate(side, side)
+
   return mat4.fromValues(
     up[0], up[1], up[2], 0,
     side[0], side[1], side[2], 0,
-    d[0], d[1], d[2], 0,
+    z[0], z[1], z[2], 0,
     0, 0, 0, 1
   )
 }
 
-const memberTransform = (pa, pb, L, anchor) => {
-  const dir = vec3.normalize(vec3.create(), vec3.subtract(vec3.create(), pb, pa))
-  const R = rotationBeamSectionWorldZStable(dir)
-  const mid = vec3.scale(vec3.create(), vec3.add(vec3.create(), pa, pb), 0.5)
-  const origin = anchor === 'start' ? pa : mid
-  const T = mat4.fromTranslation(mat4.create(), origin)
+/** Transform: local z ∈ [0, L] maps to world segment pa → pb. */
+const memberTransformPaToPb = (pa, pb) => {
+  const placementDir = vec3.normalize(vec3.create(), vec3.subtract(vec3.create(), pb, pa))
+  const R = memberRotationPaToPb(placementDir)
+  const T = mat4.fromTranslation(mat4.create(), pa)
   return mat4.multiply(mat4.create(), T, R)
 }
 
@@ -76,19 +102,19 @@ const structureMembersToSolids = (structure) => {
     const tf = Math.max(EPS, Number(sec.tf) || 0.25)
     const tw = Math.max(EPS, Number(sec.tw) || 0.2)
 
+    const M = memberTransformPaToPb(pa, pb)
+    const zCenter = L / 2
+
     if (profile === 'circle') {
-      const cyl = cylinder({ height: L, radius: r, segments: 28 })
-      const M = memberTransform(pa, pb, L, 'center')
+      const cyl = cylinder({ height: L, radius: r, segments: 28, center: [0, 0, zCenter] })
       solids.push(transform(M, cyl))
     } else if (profile === 'i') {
       const beamProfile = iBeamProfile2d(H, b, tf, tw)
       if (!beamProfile) continue
       const bar = extrudeLinear({ height: L }, beamProfile)
-      const M = memberTransform(pa, pb, L, 'start')
       solids.push(transform(M, bar))
     } else {
-      const box = cuboid({ size: [b, H, L], center: [0, 0, 0] })
-      const M = memberTransform(pa, pb, L, 'center')
+      const box = cuboid({ size: [b, H, L], center: [0, 0, zCenter] })
       solids.push(transform(M, box))
     }
   }
@@ -96,3 +122,5 @@ const structureMembersToSolids = (structure) => {
 }
 
 module.exports = structureMembersToSolids
+module.exports.canonicalLineAxis = canonicalLineAxis
+module.exports.memberRotationPaToPb = memberRotationPaToPb

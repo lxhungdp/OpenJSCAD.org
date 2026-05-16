@@ -7,8 +7,17 @@ const makeDrawMultiGrid = (regl, params) => {
   const drawMainGrid = require('./index')(regl, { size, ticks: ticks[0] })
   const drawSubGrid = require('./index')(regl, { size, ticks: ticks[1] })
   const drawGrid = (props) => {
-    drawMainGrid(props)
-    drawSubGrid({ color: props.subColor, fadeOut: props.fadeOut })
+    const model = props && props.model
+    const shared = {
+      model,
+      fadeOut: props.fadeOut,
+      lineWidth: props.lineWidth
+    }
+    drawMainGrid(Object.assign({}, props, shared, { polygonOffsetUnits: 1 }))
+    drawSubGrid(Object.assign({}, props, shared, {
+      color: props.subColor,
+      polygonOffsetUnits: -1
+    }))
   }
   return drawGrid
 }

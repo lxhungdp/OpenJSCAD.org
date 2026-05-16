@@ -1,4 +1,10 @@
 const mat4 = require('gl-mat4')
+const { drawRestraintGlyph, DEFAULT_STYLE: restraintGlyphStyle } = require('../restraints/restraintGlyphs')
+const {
+  drawReleaseGlyphsForElement,
+  normalizeReleaseEnd,
+  DEFAULT_STYLE: releaseGlyphStyle
+} = require('../releases/releaseGlyphs')
 
 /** Epsilon outside NDC Z = ±1 before discarding (ortho top view often sits on clip plane). */
 const PROJ_Z_REJECT_EPS = 0.02
@@ -173,13 +179,10 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
   }
 
   if (showReleased && truss.releases && truss.releases.length) {
-    const releaseStyle = {
-      fill: 'rgba(230, 81, 0, 0.96)',
-      stroke: 'rgba(255,255,255,0.92)',
-      strokeWidth: '2'
-    }
     truss.releases.forEach((rel) => {
-      const el = truss.elements.find((e) => e.id === rel.elementId)
+      const end = normalizeReleaseEnd(rel.end)
+      if (!end) return
+      const el = truss.elements.find((e) => Number(e.id) === Number(rel.elementId))
       if (!el) return
       const iRef = el.iNode != null ? el.iNode : el.startId
       const jRef = el.jNode != null ? el.jNode : el.endId
@@ -189,12 +192,17 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
       const pa = projectWorld(a.x, a.y, a.z, viewProj, cssW, cssH)
       const pb = projectWorld(b.x, b.y, b.z, viewProj, cssW, cssH)
       if (!pa || !pb) return
-      const end = rel.end === 'start' || rel.end === 'end' || rel.end === 'both' ? rel.end : 'both'
-      const mark = (px, py, ox, oy) => {
-        appendScreenLabel(g, 'rel', px + ox, py + oy, 'middle', Object.assign({ fontSize: '8' }, releaseStyle))
-      }
-      if (end === 'start' || end === 'both') mark(pa[0], pa[1], -5, -8)
-      if (end === 'end' || end === 'both') mark(pb[0], pb[1], 5, -8)
+      drawReleaseGlyphsForElement(g, pa, pb, end, releaseGlyphStyle)
+    })
+  }
+
+  if (showRestraints && truss.restraints && truss.restraints.length) {
+    truss.restraints.forEach((r) => {
+      const n = nodeById[r.nodeId]
+      if (!n) return
+      const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
+      if (!p) return
+      drawRestraintGlyph(g, r, p[0], p[1], restraintGlyphStyle)
     })
   }
 
@@ -234,21 +242,6 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
         stroke: nodeLabelStroke,
         strokeWidth: '2.5'
       })
-    })
-  }
-
-  if (showRestraints && truss.restraints && truss.restraints.length) {
-    const restraintStyle = {
-      fill: 'rgba(21, 101, 192, 0.96)',
-      stroke: 'rgba(255,255,255,0.92)',
-      strokeWidth: '2'
-    }
-    truss.restraints.forEach((r) => {
-      const n = nodeById[r.nodeId]
-      if (!n) return
-      const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
-      if (!p) return
-      appendScreenLabel(g, '▾', p[0], p[1] + 12, 'middle', restraintStyle)
     })
   }
 

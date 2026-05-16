@@ -1,10 +1,7 @@
 const html = require('nanohtml')
 
+/** Viewer settings in Options: grid spacing / snap only (view + grid visibility live in Display menu). */
 const viewerControls = (state, i18n) => {
-  const vm = (state.viewer.camera && state.viewer.camera.viewMode) || '3d'
-  const btn = (id, label) => html`
-    <button type="button" class="view-mode-btn ${vm === id ? 'view-mode-btn-active' : ''}" data-view-mode="${id}">${label}</button>
-  `
   const g = (state.viewer && state.viewer.grid) || {}
   const minorStep = (typeof g.minorStep === 'number' && g.minorStep > 0) ? g.minorStep : 1
   const majorStep = (typeof g.majorStep === 'number' && g.majorStep > 0) ? g.majorStep : 10
@@ -12,22 +9,6 @@ const viewerControls = (state, i18n) => {
   const sizeY = (Array.isArray(g.size) && g.size[1] > 0) ? g.size[1] : 200
   return html`
 <div id='controls' class='settings-viewer'>
-  <div class="settings-view-toolbar" role="group" aria-label="View projection">
-    ${btn('3d', '3D')}
-    ${btn('xy', 'X–Y')}
-    ${btn('xz', 'X–Z')}
-    ${btn('yz', 'Y–Z')}
-  </div>
-  <div class="settings-row settings-viewer-pair">
-    <div class="settings-pair-cell settings-row-checkbox">
-      <input type="checkbox" id="toggleGrid" checked=${state.viewer.grid.show} />
-      <label for="toggleGrid">${i18n`grid`}</label>
-    </div>
-    <div class="settings-pair-cell settings-row-checkbox">
-      <input type="checkbox" id="toggleAxes" checked=${state.viewer.axes.show} />
-      <label for="toggleAxes">${i18n`axes`}</label>
-    </div>
-  </div>
   <div class="settings-row settings-viewer-grid-fields" role="group" aria-label="Grid and snap spacing">
     <div class="settings-grid-field">
       <label for="gridMinorStep">Minor grid / snap (world)</label>

@@ -332,30 +332,66 @@ const updateSection = (state, payload) => {
   })
 }
 
+const {
+  RESTRAINT_PRESETS: RESTRAINT_PRESET_DOFS,
+  inferPresetFromDofs,
+  isFreeDofs
+} = require('../restraints/restraintDofs')
+
+const resolveRestraintDofs = (payload) => {
+  const preset = payload && payload.preset
+  if (preset === 'free') {
+    return [false, false, false, false, false, false]
+  }
+  if (preset && preset !== 'custom' && RESTRAINT_PRESET_DOFS[preset]) {
+    return RESTRAINT_PRESET_DOFS[preset].map((x) => !!x)
+  }
+  if (payload && Array.isArray(payload.dofs) && payload.dofs.length === 6) {
+    return payload.dofs.map((x) => !!x)
+  }
+  return RESTRAINT_PRESET_DOFS.pinned.map((x) => !!x)
+}
+
+const resolveRestraintPreset = (payload, dofsArr) => {
+  const explicit = payload && payload.preset
+  if (explicit === 'free' || explicit === 'custom') return explicit
+  if (explicit && RESTRAINT_PRESET_DOFS[explicit]) return explicit
+  return inferPresetFromDofs(dofsArr)
+}
+
+const removeRestraintByNodeId = (state, nodeId) => {
+  const s = ensure(state)
+  const nid = Number(nodeId)
+  return withStructure(state, {
+    restraints: s.restraints.filter((r) => Number(r.nodeId) !== nid)
+  })
+}
+
 // --- Restraints ---
 const addRestraint = (state, payload) => {
   const s = ensure(state)
   let nodeId = Number(payload && payload.nodeId)
   if (!isFinite(nodeId) && s.nodes[0]) nodeId = s.nodes[0].id
   if (!isFinite(nodeId)) return state
+  const dofsArr = resolveRestraintDofs(payload)
+  if (isFreeDofs(dofsArr)) {
+    return removeRestraintByNodeId(state, nodeId)
+  }
+  const preset = resolveRestraintPreset(payload, dofsArr)
   const existing = s.restraints.find((r) => r.nodeId === nodeId)
-  const dofs = (payload && payload.dofs) || [true, true, true, true, true, true]
   if (existing) {
     return withStructure(state, {
       restraints: s.restraints.map((r) => (r.nodeId === nodeId
-        ? { id: r.id, nodeId, preset: payload.preset, dofs: dofs.map((x) => !!x) }
+        ? { id: r.id, nodeId, preset, dofs: dofsArr }
         : r))
     })
   }
   const id = s.nextRestraintId
-  const dofsArr = (payload && payload.dofs)
-    ? payload.dofs.map((x) => !!x)
-    : [true, true, true, true, true, true]
   return withStructure(state, {
     restraints: s.restraints.concat([{
       id,
       nodeId,
-      preset: payload && payload.preset,
+      preset,
       dofs: dofsArr
     }]),
     nextRestraintId: id + 1
@@ -378,10 +414,15 @@ const addRelease = (state, payload) => {
   let elementId = Number(payload && payload.elementId)
   if (!isFinite(elementId) && s.elements[0]) elementId = s.elements[0].id
   const endIn = payload && payload.end
+  if (!isFinite(elementId)) return state
+  if (endIn === 'none') {
+    const existingNone = s.releases.find((r) => r.elementId === elementId)
+    return existingNone ? removeRelease(state, existingNone.id) : state
+  }
   let end = null
   if (endIn === 'start' || endIn === 'end' || endIn === 'both') end = endIn
-  else if (endIn !== 'none') end = 'both'
-  if (!isFinite(elementId) || !end) return state
+  else end = 'both'
+  if (!end) return state
   const existing = s.releases.find((r) => r.elementId === elementId)
   if (existing) {
     return withStructure(state, {
@@ -546,8 +587,16 @@ const applySelectionPanel = (state, payload) => {
 
   if (Array.isArray(p.restraints)) {
     for (const r of p.restraints) {
-      if (r && isFinite(Number(r.nodeId))) {
-        next = addRestraint(next, { nodeId: Number(r.nodeId), dofs: r.dofs })
+      if (!r || !isFinite(Number(r.nodeId))) continue
+      const nodeId = Number(r.nodeId)
+      if (r.remove || (Array.isArray(r.dofs) && isFreeDofs(r.dofs))) {
+        next = removeRestraintByNodeId(next, nodeId)
+      } else {
+        next = addRestraint(next, {
+          nodeId,
+          dofs: r.dofs,
+          preset: r.preset
+        })
       }
     }
   }

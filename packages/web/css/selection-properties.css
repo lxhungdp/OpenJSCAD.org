@@ -410,8 +410,8 @@
   pointer-events: none;
 }
 
-.sel-section--delete {
-  padding: 8px 9px 9px;
+.sel-section--ids .sel-delete-row {
+  margin-top: 7px;
 }
 
 .sel-delete-row {
@@ -655,6 +655,29 @@
   width: 15px;
   height: 15px;
   border-radius: 4px;
+  accent-color: var(--sel-accent);
+}
+
+.sel-restraint-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin-bottom: 4px;
+}
+
+.sel-restraint-preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--sel-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sel-restraint-preset input {
+  margin: 0;
   accent-color: var(--sel-accent);
 }
 

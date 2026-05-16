@@ -118,14 +118,16 @@ const makeDrawGrid = (regl, params = {}) => {
     lineWidth: (context, props) => Math.min((props && props.lineWidth ? props.lineWidth : lineWidth), regl.limits.lineWidthDims[1]),
     primitive: 'lines',
     cull: {
-      enable: true,
-      face: 'front'
+      enable: false
+    },
+    depth: {
+      enable: false
     },
     polygonOffset: {
-      enable: true,
+      enable: (context, props) => props && props.polygonOffsetUnits !== undefined,
       offset: {
-        factor: 1,
-        units: Math.random() * 10
+        factor: 0,
+        units: (context, props) => (props && props.polygonOffsetUnits) || 0
       }
     },
     blend: {

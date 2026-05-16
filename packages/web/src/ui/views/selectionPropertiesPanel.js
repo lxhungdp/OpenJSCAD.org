@@ -2,6 +2,14 @@ const html = require('nanohtml')
 const structureReducers = require('../flow/structureReducers')
 const { formatIdRanges, parseIdsFromRangeString } = require('../selection/idRangeFormat')
 const { parseSpacingPattern } = require('../selection/spacingPattern')
+const {
+  RESTRAINT_PRESET_OPTIONS,
+  inferPresetFromDofs,
+  dofsForPreset,
+  isFreeDofs,
+  restraintDofs,
+  effectivePresetForRestraint
+} = require('../restraints/restraintDofs')
 
 const DOF_LABELS = ['Ux', 'Uy', 'Uz', 'Rx', 'Ry', 'Rz']
 
@@ -103,8 +111,18 @@ const runApply = (panel, ctx) => {
       const c = restBox.querySelector(`[data-dof="${i}"]`)
       return !!(c && c.checked)
     })
+    const presetRadio = restBox.querySelector('[data-sel-restraint-preset]:checked')
+    const preset = presetRadio ? presetRadio.value : inferPresetFromDofs(dofs)
     nextNodes.forEach((nid) => {
-      panelPayload.restraints.push({ nodeId: Number(nid), dofs })
+      if (isFreeDofs(dofs)) {
+        panelPayload.restraints.push({ nodeId: Number(nid), remove: true })
+      } else {
+        panelPayload.restraints.push({
+          nodeId: Number(nid),
+          dofs,
+          preset: preset === 'custom' ? 'custom' : inferPresetFromDofs(dofs)
+        })
+      }
     })
   }
 
@@ -450,6 +468,35 @@ const ensureSelPropsDelegation = () => {
       }
     }
   })
+
+  document.addEventListener('change', (e) => {
+    const panel = getLivePanel()
+    if (!panel || !panel.contains(e.target)) return
+    const restBox = panel.querySelector('.sel-props-restraint')
+    if (!restBox) return
+
+    if (e.target.matches('[data-sel-restraint-preset]')) {
+      const tuple = dofsForPreset(e.target.value)
+      if (tuple) {
+        tuple.forEach((v, i) => {
+          const c = restBox.querySelector(`[data-dof="${i}"]`)
+          if (c) c.checked = !!v
+        })
+      }
+      return
+    }
+
+    if (e.target.matches('[data-dof]')) {
+      const dofs = DOF_LABELS.map((_, i) => {
+        const c = restBox.querySelector(`[data-dof="${i}"]`)
+        return !!(c && c.checked)
+      })
+      const preset = inferPresetFromDofs(dofs)
+      restBox.querySelectorAll('[data-sel-restraint-preset]').forEach((radio) => {
+        radio.checked = radio.value === preset
+      })
+    }
+  })
 }
 ensureSelPropsDelegation()
 
@@ -464,7 +511,7 @@ const commonRestraintDofs = (struct, nodeIds) => {
   if (!nodeIds.length) return [false, false, false, false, false, false]
   const rows = nodeIds.map((nid) => {
     const r = (struct.restraints || []).find((rr) => Number(rr.nodeId) === Number(nid))
-    return r && Array.isArray(r.dofs) ? r.dofs.map(Boolean) : [false, false, false, false, false, false]
+    return r ? (restraintDofs(r) || [false, false, false, false, false, false]) : [false, false, false, false, false, false]
   })
   const out = []
   for (let i = 0; i < 6; i++) {
@@ -545,6 +592,28 @@ const syncSelPropsTabs = (nodeIds, elementIds) => {
   }
 }
 
+const commonRestraintPreset = (struct, nodeIds) => {
+  if (!nodeIds.length) return 'free'
+  const presets = nodeIds.map((nid) => {
+    const r = (struct.restraints || []).find((rr) => Number(rr.nodeId) === Number(nid))
+    return r ? effectivePresetForRestraint(r) : 'free'
+  })
+  const p0 = presets[0]
+  return presets.every((p) => p === p0) ? p0 : ''
+}
+
+const restraintPresetRadios = (selected) => html`
+  <div class="sel-restraint-presets" role="radiogroup" aria-label="Restraint preset">
+    ${RESTRAINT_PRESET_OPTIONS.map((p) => html`
+      <label class="sel-restraint-preset">
+        <input type="radio" name="sel-restraint-preset" value="${p.value}" data-sel-restraint-preset=""
+          ${selected === p.value ? 'checked' : ''} />
+        <span>${p.label}</span>
+      </label>
+    `)}
+  </div>
+`
+
 const dofCheckboxRow = (struct, nodeIds, rowStart, rowEnd) => {
   const dofs = commonRestraintDofs(struct, nodeIds)
   const cells = []
@@ -602,6 +671,7 @@ const selectionPropertiesPanel = (state, i18n, structureCtl, viewerUiCtl) => {
 
   const nl = commonNodalLoadValues(struct, nodeIds)
   const relEnd = commonReleaseEnd(struct, elementIds)
+  const restPreset = commonRestraintPreset(struct, nodeIds)
 
   const nodePanelHidden = !nodeIds.length
 
@@ -625,6 +695,13 @@ const selectionPropertiesPanel = (state, i18n, structureCtl, viewerUiCtl) => {
                   <span class="sel-section__label sel-section__label--inline">${i18n`IDs`}</span>
                   <input type="text" class="sel-input sel-input--ids" data-sel-node-ids-input="" value="${nStr}" spellcheck="false" placeholder="1, 3-5, 8" />
                 </div>
+                <div class="sel-delete-row" data-sel-delete-row="" data-sel-delete-scope="nodes">
+                  <button type="button" class="sel-btn-delete-request" data-sel-delete-request="">${i18n`Delete Selected Nodes`}</button>
+                  <div class="sel-delete-confirm-group">
+                    <button type="button" class="sel-btn-delete-confirm" data-sel-delete-confirm="">${i18n`Confirm`}</button>
+                    <button type="button" class="sel-btn-delete-cancel" data-sel-delete-cancel="">${i18n`Cancel`}</button>
+                  </div>
+                </div>
               </section>
               <section class="sel-section">
                 <p class="sel-section__label">${i18n`Coordinate`}</p>
@@ -646,6 +723,7 @@ const selectionPropertiesPanel = (state, i18n, structureCtl, viewerUiCtl) => {
               <section class="sel-section">
                 <p class="sel-section__label">${i18n`Restraints`}</p>
                 <div class="sel-props-restraint">
+                  ${restraintPresetRadios(restPreset)}
                   ${dofCheckboxRow(struct, nodeIds, 0, 3)}
                   ${dofCheckboxRow(struct, nodeIds, 3, 6)}
                 </div>
@@ -678,15 +756,6 @@ const selectionPropertiesPanel = (state, i18n, structureCtl, viewerUiCtl) => {
                   </div>
                 </div>
               </section>
-              <section class="sel-section sel-section--delete">
-                <div class="sel-delete-row" data-sel-delete-row="" data-sel-delete-scope="nodes">
-                  <button type="button" class="sel-btn-delete-request" data-sel-delete-request="">${i18n`Delete Selected Nodes`}</button>
-                  <div class="sel-delete-confirm-group">
-                    <button type="button" class="sel-btn-delete-confirm" data-sel-delete-confirm="">${i18n`Confirm`}</button>
-                    <button type="button" class="sel-btn-delete-cancel" data-sel-delete-cancel="">${i18n`Cancel`}</button>
-                  </div>
-                </div>
-              </section>
             ` : ''}
           </div>
           <div data-sel-panel="elements" class="sel-tab-panel sel-element-compact ${!elementIds.length ? 'sel-tab-panel--hidden' : (showTabs ? 'sel-tab-panel--hidden' : '')}">
@@ -695,6 +764,13 @@ const selectionPropertiesPanel = (state, i18n, structureCtl, viewerUiCtl) => {
                 <div class="sel-ids-row">
                   <span class="sel-section__label sel-section__label--inline">${i18n`IDs`}</span>
                   <input type="text" class="sel-input sel-input--ids" data-sel-element-ids-input="" value="${eStr}" spellcheck="false" placeholder="1, 2-4" />
+                </div>
+                <div class="sel-delete-row" data-sel-delete-row="" data-sel-delete-scope="elements">
+                  <button type="button" class="sel-btn-delete-request" data-sel-delete-request="">${i18n`Delete Selected Elements`}</button>
+                  <div class="sel-delete-confirm-group">
+                    <button type="button" class="sel-btn-delete-confirm" data-sel-delete-confirm="">${i18n`Confirm`}</button>
+                    <button type="button" class="sel-btn-delete-cancel" data-sel-delete-cancel="">${i18n`Cancel`}</button>
+                  </div>
                 </div>
               </section>
               <section class="sel-section">
@@ -746,15 +822,6 @@ const selectionPropertiesPanel = (state, i18n, structureCtl, viewerUiCtl) => {
                     <button type="button" class="sel-btn-spacing-apply" data-sel-element-spacing-run="" title="${i18n`Apply`}" aria-label="${i18n`Apply`}">
                       <svg class="sel-btn-spacing-apply__icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                     </button>
-                  </div>
-                </div>
-              </section>
-              <section class="sel-section sel-section--delete">
-                <div class="sel-delete-row" data-sel-delete-row="" data-sel-delete-scope="elements">
-                  <button type="button" class="sel-btn-delete-request" data-sel-delete-request="">${i18n`Delete Selected Elements`}</button>
-                  <div class="sel-delete-confirm-group">
-                    <button type="button" class="sel-btn-delete-confirm" data-sel-delete-confirm="">${i18n`Confirm`}</button>
-                    <button type="button" class="sel-btn-delete-cancel" data-sel-delete-cancel="">${i18n`Cancel`}</button>
                   </div>
                 </div>
               </section>

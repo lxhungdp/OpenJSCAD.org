@@ -201,6 +201,8 @@ const actions = ({ sources }) => {
     .map((payload) => Object.assign({}, { type: 'initializeViewer', sink: 'state' }, { state: payload }))
 
   const toggleGrid$ = most.mergeArray([
+    sources.dom.select('#toggleGrid').events('change')
+      .map((e) => e.target.checked),
     sources.dom.select('#toggleGrid').events('click')
       .map((e) => e.target.checked)
     // sources.store
@@ -211,6 +213,8 @@ const actions = ({ sources }) => {
     .map((data) => ({ type: 'toggleGrid', state: data, sink: 'state' }))
 
   const toggleAxes$ = most.mergeArray([
+    sources.dom.select('#toggleAxes').events('change')
+      .map((e) => e.target.checked),
     sources.dom.select('#toggleAxes').events('click')
       .map((e) => e.target.checked)
     // sources.store

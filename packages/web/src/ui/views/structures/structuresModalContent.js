@@ -17,13 +17,11 @@ const formatFemHint = (fem) => {
   }
 }
 
-const RESTRAINT_PRESETS = [
-  { value: 'fixed', label: 'Fixed' },
-  { value: 'pinned', label: 'Pinned' },
-  { value: 'horizontal-roller', label: 'H-roller' },
-  { value: 'vertical-roller', label: 'V-roller' },
-  { value: 'custom', label: 'Custom (6 DOF)' }
-]
+const {
+  RESTRAINT_PRESET_OPTIONS,
+  inferPresetFromDofs,
+  restraintDofs
+} = require('../../restraints/restraintDofs')
 
 const DOF_LABELS = ['ux', 'uy', 'uz', 'rx', 'ry', 'rz']
 
@@ -93,12 +91,14 @@ const buildElementBody = (s, i18n) => {
 const buildBoundariesBody = (s, i18n) => {
   const bTab = s.boundariesTab || 'restraint'
   const restraintRows = s.restraints.map((r) => {
-    const presetOpts = RESTRAINT_PRESETS.map((p) =>
-      html`<option value="${p.value}" selected=${r.preset === p.value}>${p.label}</option>`)
+    const dofs = restraintDofs(r) || [false, false, false, false, false, false]
+    const effectivePreset = inferPresetFromDofs(dofs)
+    const presetOpts = RESTRAINT_PRESET_OPTIONS.map((p) =>
+      html`<option value="${p.value}" selected=${effectivePreset === p.value}>${p.label}</option>`)
     const dofCells = DOF_LABELS.map((label, i) => html`
       <td class="structures-modal-dof-cell">
         <input type="checkbox" class="struct-restraint-in structures-modal-checkbox" data-dof="${i}"
-          checked=${r.dofs && r.dofs[i]} title="${label}" />
+          checked=${dofs[i]} title="${label}" />
       </td>`)
     return html`
     <tr data-node-id="${r.nodeId}">
@@ -111,16 +111,17 @@ const buildBoundariesBody = (s, i18n) => {
       </td>
     </tr>`
   })
-  const releaseRows = s.releases.map((r) => html`
+  const releaseRows = s.releases
+    .filter((r) => r.end === 'start' || r.end === 'end' || r.end === 'both')
+    .map((r) => html`
     <tr data-element-id="${r.elementId}" data-release-id="${r.id}">
       <td>${r.id}</td>
       <td>${r.elementId}</td>
       <td>
         <select class="struct-release-in structures-modal-field structures-modal-select" data-k="end">
-          <option value="none">None</option>
-          <option value="start" selected=${r.end === 'start'}>start</option>
-          <option value="end" selected=${r.end === 'end'}>end</option>
-          <option value="both" selected=${r.end === 'both'}>both</option>
+          <option value="start" selected=${r.end === 'start'}>Start</option>
+          <option value="end" selected=${r.end === 'end'}>End</option>
+          <option value="both" selected=${r.end === 'both'}>Both</option>
         </select>
       </td>
       <td class="structures-modal-actions-cell">
@@ -147,6 +148,7 @@ const buildBoundariesBody = (s, i18n) => {
         <button type="button" class="structures-modal-action" data-struct-op="addRestraint">${i18n`Add restraint`}</button>
       </div>
       <div class="structures-modal-tab-panel${bTab === 'release' ? '' : ' structures-modal-tab-panel--hidden'}" role="tabpanel">
+        <p class="struct-hint structures-modal-hint">${i18n`Mz release at element end(s). × removes row.`}</p>
         ${tableShell(releaseHead, releaseRows)}
         <button type="button" class="structures-modal-action" data-struct-op="addRelease">${i18n`Add release`}</button>
       </div>

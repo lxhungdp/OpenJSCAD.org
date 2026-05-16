@@ -3,6 +3,8 @@ module.exports = {
   drawCommands: {
     // draw commands should bootstrap themselves the first time they are run
     drawGrid: require('./rendering/commands/drawGrid/multi.js'),
+    drawGridMajor: require('./rendering/commands/drawGrid/major.js'),
+    drawGridMinor: require('./rendering/commands/drawGrid/minor.js'),
     drawAxis: require('./rendering/commands/drawAxis'),
     drawMesh: require('./rendering/commands/drawMesh'),
     drawLines: require('./rendering/commands/drawLines')

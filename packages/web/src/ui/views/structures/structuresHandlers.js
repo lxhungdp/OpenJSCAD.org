@@ -1,4 +1,5 @@
 const DOF_LABELS = ['ux', 'uy', 'uz', 'rx', 'ry', 'rz']
+const { inferPresetFromDofs, dofsForPreset, isFreeDofs } = require('../../restraints/restraintDofs')
 const { downloadStructureJson, pickStructureJsonFile } = require('./structureFileActions')
 const { getLiveStructure } = require('../../structure/structureLiveAccess')
 
@@ -264,24 +265,49 @@ const attachHandlers = (root, ctl) => {
     }
   })
 
-  root.querySelectorAll('.struct-restraint-in').forEach((inp) => {
+  const readRestraintDofsFromRow = (tr) =>
+    DOF_LABELS.map((_, i) => {
+      const c = tr.querySelector(`[data-dof="${i}"]`)
+      return !!(c && c.checked)
+    })
+
+  const applyPresetToRestraintRow = (tr, presetVal) => {
+    const tuple = dofsForPreset(presetVal)
+    if (!tuple) return
+    DOF_LABELS.forEach((_, i) => {
+      const c = tr.querySelector(`[data-dof="${i}"]`)
+      if (c) c.checked = !!tuple[i]
+    })
+  }
+
+  const fireRestraintRow = (tr) => {
+    const nodeId = Number(tr.getAttribute('data-node-id'))
+    const dofs = readRestraintDofsFromRow(tr)
+    const presetSel = tr.querySelector('[data-k="preset"]')
+    const preset = isFreeDofs(dofs)
+      ? 'free'
+      : (presetSel && presetSel.value === 'custom' ? 'custom' : inferPresetFromDofs(dofs))
+    if (presetSel && preset !== 'custom') presetSel.value = preset
+    cb({ op: 'addRestraint', payload: { nodeId, preset, dofs } })
+  }
+
+  root.querySelectorAll('.struct-restraint-in[data-k="preset"]').forEach((sel) => {
+    sel.onchange = (ev) => {
+      const tr = ev.target.closest('tr')
+      if (!tr) return
+      applyPresetToRestraintRow(tr, ev.target.value)
+      fireRestraintRow(tr)
+    }
+  })
+
+  root.querySelectorAll('.struct-restraint-in[data-dof]').forEach((inp) => {
     inp.onchange = (ev) => {
       const tr = ev.target.closest('tr')
       if (!tr) return
-      const nodeId = Number(tr.getAttribute('data-node-id'))
-      const preset = tr.querySelector('[data-k="preset"]')
-      const dofs = DOF_LABELS.map((_, i) => {
-        const c = tr.querySelector(`[data-dof="${i}"]`)
-        return !!(c && c.checked)
-      })
-      cb({
-        op: 'addRestraint',
-        payload: {
-          nodeId,
-          preset: preset && preset.value !== 'custom' ? preset.value : undefined,
-          dofs
-        }
-      })
+      const dofs = readRestraintDofsFromRow(tr)
+      const presetSel = tr.querySelector('[data-k="preset"]')
+      if (presetSel) presetSel.value = inferPresetFromDofs(dofs)
+      fireRestraintRow(tr)
     }
   })
 
@@ -293,9 +319,7 @@ const attachHandlers = (root, ctl) => {
       const releaseId = Number(tr.getAttribute('data-release-id'))
       const end = tr.querySelector('[data-k="end"]')
       const endVal = end && end.value
-      if (endVal === 'none') {
-        if (isFinite(releaseId)) cb({ op: 'removeRelease', id: releaseId })
-      } else if (endVal === 'start' || endVal === 'end' || endVal === 'both') {
+      if (endVal === 'start' || endVal === 'end' || endVal === 'both') {
         cb({ op: 'addRelease', payload: { elementId, end: endVal } })
       }
     }

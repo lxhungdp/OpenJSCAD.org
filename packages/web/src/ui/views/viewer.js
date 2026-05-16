@@ -117,7 +117,8 @@ const applyViewMode = (mode, canvasEl) => {
     return
   }
 
-  const presetByMode = { xy: 'top', xz: 'front', yz: 'right' }
+  // xz: camera on −Y (same side as default 3D eye) so +X stays left→right and +Y is front→back
+  const presetByMode = { xy: 'top', xz: 'back', yz: 'right' }
   const preset = presetByMode[mode]
   if (!preset) return
 
@@ -132,6 +133,18 @@ const applyViewMode = (mode, canvasEl) => {
 }
 
 let prevGridLayoutKey = ''
+let prevOverlaySignature = ''
+
+/** Rotate default XY grid to the plane visible in each orthographic view. */
+const gridModelForViewMode = (viewMode) => {
+  const m = mat4.create()
+  if (viewMode === 'xz') {
+    mat4.rotateX(m, m, -Math.PI / 2)
+  } else if (viewMode === 'yz') {
+    mat4.rotateY(m, m, Math.PI / 2)
+  }
+  return m
+}
 
 const syncGridEntityFromState = (state) => {
   if (!state || !state.viewer || !state.viewer.grid) return
@@ -140,29 +153,51 @@ const syncGridEntityFromState = (state) => {
   const sy = (Array.isArray(g.size) && g.size[1] > 0) ? g.size[1] : 200
   const major = (typeof g.majorStep === 'number' && isFinite(g.majorStep) && g.majorStep > 0) ? g.majorStep : 10
   const minor = (typeof g.minorStep === 'number' && isFinite(g.minorStep) && g.minorStep > 0) ? g.minorStep : 1
-  grid.size = [sx, sy]
-  grid.ticks = [major, minor]
+  const size = [sx, sy]
+  const ticks = [major, minor]
+  gridMinor.size = size
+  gridMinor.ticks = ticks
+  gridMajor.size = size
+  gridMajor.ticks = ticks
   const layoutKey = `${sx},${sy},${major},${minor}`
   if (layoutKey !== prevGridLayoutKey) {
     prevGridLayoutKey = layoutKey
-    // prepareRender only builds a new draw command when cacheId is unset (or cache miss in patched renderer).
-    // A preset string id with no Map entry yields drawCmd === undefined and breaks the whole pass.
-    delete grid.visuals.cacheId
+    delete gridMinor.visuals.cacheId
+    delete gridMajor.visuals.cacheId
     updateView = true
   }
 }
 
-const grid = { // command to draw the grid (size/ticks synced from state in syncGridEntityFromState)
-  visuals: {
-    drawCmd: 'drawGrid',
-    show: true,
-    color: [0, 0, 0, 1],
-    subColor: [0, 0, 1, 0.5],
-    fadeOut: false,
-    transparent: true
-  },
+const gridSharedVisuals = {
+  show: true,
+  fadeOut: false,
+  transparent: true
+}
+
+/** Minor drawn first, major on top — separate entities so model matrix applies to both layers in all views. */
+const gridMinor = {
+  visuals: Object.assign({}, gridSharedVisuals, {
+    drawCmd: 'drawGridMinor',
+    color: [0, 0, 1, 0.5]
+  }),
   size: [200, 200],
   ticks: [10, 1]
+}
+
+const gridMajor = {
+  visuals: Object.assign({}, gridSharedVisuals, {
+    drawCmd: 'drawGridMajor',
+    color: [0, 0, 0, 1],
+    subColor: [0, 0, 1, 0.5]
+  }),
+  size: [200, 200],
+  ticks: [10, 1]
+}
+
+const syncGridModels = (viewMode) => {
+  const model = gridModelForViewMode(viewMode)
+  gridMinor.model = model
+  gridMajor.model = model
 }
 
 const axes = { // command to draw the axes
@@ -176,8 +211,22 @@ const axes = { // command to draw the axes
 const applyViewerEntitiesFromState = (state) => {
   if (!state || !viewerOptions || !state.viewer) return
   syncGridEntityFromState(state)
+  const viewMode = (state.viewer.camera && state.viewer.camera.viewMode) || '3d'
+  syncGridModels(viewMode)
+  const overlaySignature = [
+    viewMode,
+    state.viewer.grid.show ? 1 : 0,
+    state.viewer.axes.show ? 1 : 0,
+    prevGridLayoutKey
+  ].join('|')
+  if (overlaySignature !== prevOverlaySignature) {
+    prevOverlaySignature = overlaySignature
+    updateView = true
+  }
+  const showGrid = state.viewer.grid.show
   viewerOptions.entities = [
-    state.viewer.grid.show ? grid : undefined,
+    showGrid ? gridMinor : undefined,
+    showGrid ? gridMajor : undefined,
     state.viewer.axes.show ? axes : undefined,
     ...prevEntities,
     ...prevStructureEntities
@@ -690,8 +739,9 @@ const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
 
     if (state.themes && state.themes.themeSettings) {
       const theme = state.themes.themeSettings.viewer
-      grid.visuals.color = theme.grid.color
-      grid.visuals.subColor = theme.grid.subColor
+      gridMajor.visuals.color = theme.grid.color
+      gridMajor.visuals.subColor = theme.grid.subColor
+      gridMinor.visuals.color = theme.grid.subColor
 
       if (viewerOptions.rendering) {
         const trKey = JSON.stringify({
@@ -709,17 +759,22 @@ const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
 
     syncGridEntityFromState(state)
 
+    const showGrid = state.viewer.grid.show
     viewerOptions.entities = [
-      state.viewer.grid.show ? grid : undefined,
+      showGrid ? gridMinor : undefined,
+      showGrid ? gridMajor : undefined,
       state.viewer.axes.show ? axes : undefined,
       ...prevEntities,
       ...prevStructureEntities
     ].filter((x) => x !== undefined)
 
     const viewMode = (state.viewer.camera && state.viewer.camera.viewMode) || '3d'
+    syncGridModels(viewMode)
     if (prevViewMode !== viewMode) {
       applyViewMode(viewMode, el)
       prevViewMode = viewMode
+      delete gridMinor.visuals.cacheId
+      delete gridMajor.visuals.cacheId
       updateView = true
     }
 
@@ -772,6 +827,8 @@ const setup = (element) => {
       // draw commands bootstrap themselves the first time they are run
       drawAxis: drawCommands.drawAxis,
       drawGrid: drawCommands.drawGrid,
+      drawGridMajor: drawCommands.drawGridMajor,
+      drawGridMinor: drawCommands.drawGridMinor,
       drawLines: drawCommands.drawLines,
       drawMesh: drawCommands.drawMesh
     },

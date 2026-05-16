@@ -73,6 +73,7 @@ const makeJscad = async (targetElement, options) => {
   // structures panel (DOM survives morphdom — use callback stream like parameters)
   const structureCallbacktoStream = callbackToObservable()
   const trussCallbacktoStream = structureCallbacktoStream
+  const viewerUiCallbacktoStream = callbackToObservable()
 
   // all the sources of data
   const sources = {
@@ -80,6 +81,7 @@ const makeJscad = async (targetElement, options) => {
     editor: editorCallbackToStream.stream,
     structureInteraction: structureCallbacktoStream.stream,
     trussInteraction: structureCallbacktoStream.stream,
+    viewerUiInteraction: viewerUiCallbacktoStream.stream,
     state: state.source(),
     store: storage.source(),
     fs: fs.source(),
@@ -117,7 +119,8 @@ const makeJscad = async (targetElement, options) => {
     paramsCallbacktoStream,
     editorCallbackToStream,
     structureCallbacktoStream,
-    trussCallbacktoStream
+    trussCallbacktoStream,
+    viewerUiCallbacktoStream
   }
   cjsFn(require('./ui/flow/flowOut'))({ sinks, sources, outputs$, extras })
 

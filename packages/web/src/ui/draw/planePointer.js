@@ -78,15 +78,22 @@ const worldPointOnPlaneFromClient = (clientX, clientY, rect, viewProj, planeZ = 
  * Nearest node if within pickRadiusPx in screen space.
  * @param {function} projectWorld (x,y,z, viewProj, w, h) -> [px,py] | null
  */
-const nearestNodeByScreenPx = (nodes, clientX, clientY, rect, projectWorld, viewProj, pickRadiusPx = 14) => {
+const nearestNodeByScreenPx = (nodes, clientX, clientY, rect, projectWorld, viewProj, pickRadiusPx = 14, ignoreNodeIds) => {
   const cssW = rect.width
   const cssH = rect.height
   const px = clientX - rect.left
   const py = clientY - rect.top
   let best = null
   let bestD2 = pickRadiusPx * pickRadiusPx
+  const ignore =
+    ignoreNodeIds == null
+      ? null
+      : new Set(
+        (Array.isArray(ignoreNodeIds) ? ignoreNodeIds : [ignoreNodeIds]).map((id) => String(id))
+      )
   for (let i = 0; i < nodes.length; i++) {
     const n = nodes[i]
+    if (ignore && ignore.has(String(n.id))) continue
     const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
     if (!p) continue
     const dx = p[0] - px
@@ -101,6 +108,15 @@ const nearestNodeByScreenPx = (nodes, clientX, clientY, rect, projectWorld, view
 }
 
 /**
+ * @param {object} options
+ * @param {boolean} options.snapEnabled
+ * @param {number} options.gridMinorStep
+ * @param {function} options.projectWorld
+ * @param {Float32Array|number[]} options.viewProj
+ * @param {DOMRect} options.rect
+ * @param {number} options.clientX
+ * @param {number} options.clientY
+ * @param {unknown|unknown[]} [options.ignoreNodeIds] node id(s) excluded from screen snap (e.g. chain anchor while drawing elements)
  * @returns {{ kind: 'node'|'grid'|'free', x: number, y: number, z: number, nodeId?: number }}
  */
 const resolvePlacement = (raw, nodes, options) => {
@@ -111,13 +127,14 @@ const resolvePlacement = (raw, nodes, options) => {
     viewProj,
     rect,
     clientX,
-    clientY
+    clientY,
+    ignoreNodeIds
   } = options
   const z = raw[2]
   let x = raw[0]
   let y = raw[1]
 
-  const snappedNode = nearestNodeByScreenPx(nodes, clientX, clientY, rect, projectWorld, viewProj)
+  const snappedNode = nearestNodeByScreenPx(nodes, clientX, clientY, rect, projectWorld, viewProj, 14, ignoreNodeIds)
   if (snappedNode) {
     return { kind: 'node', x: snappedNode.x, y: snappedNode.y, z: snappedNode.z, nodeId: snappedNode.id }
   }

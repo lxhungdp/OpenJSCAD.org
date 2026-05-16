@@ -19,6 +19,7 @@ const makeActions = (sources) => {
   const designActions = require('./design')({ sources })
 
   const structureActions = require('./structure')({ sources })
+  const viewerSelectionActions = require('./viewerSelectionFlow')({ sources })
 
   const actions = [
     errorActions,
@@ -31,7 +32,8 @@ const makeActions = (sources) => {
     themeActions,
     viewerActions,
     languageActions,
-    shortcutActions]
+    shortcutActions,
+    viewerSelectionActions]
 
   const output$ = most.mergeArray(flatten(actions.map((actions) => Object.values(actions))))
     .skipRepeatsWith((state, previousState) => JSON.stringify(state) === JSON.stringify(previousState))

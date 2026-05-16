@@ -35,6 +35,11 @@ const reducers = {
         showMatId: false,
         showRestraints: true,
         showReleased: true
+      },
+      selection: {
+        mode: 'none',
+        selectedNodeIds: [],
+        selectedElementIds: []
       }
     }
     const structure = require('../../core/structure/defaultStructure')()
@@ -116,12 +121,14 @@ const reducers = {
     const m = (mode === 'node' || mode === 'element' || mode === 'none') ? mode : 'none'
     const prev = (state.viewer && state.viewer.drawing) || { snapEnabled: true }
     const drawing = Object.assign({}, prev, { mode: m })
-    const viewer = Object.assign({}, state.viewer, { drawing })
-    const out = { viewer }
-    if (m === 'node' || m === 'element') {
-      out.activeTool = 'structures'
-    }
-    return out
+    const selectionDefaults = { mode: 'none', selectedNodeIds: [], selectedElementIds: [] }
+    const prevSel = (state.viewer && state.viewer.selection) || selectionDefaults
+    const selection =
+      m !== 'none'
+        ? Object.assign({}, prevSel, selectionDefaults)
+        : prevSel
+    const viewer = Object.assign({}, state.viewer, { drawing, selection })
+    return { viewer }
   },
 
   toggleDrawSnap: (state, snapEnabled) => {
@@ -173,6 +180,19 @@ const reducers = {
     return { viewer }
   }
 
+}
+
+/** Toggle: same mode again -> off; other mode -> switch; explicit none from Escape hook. */
+const resolveDrawingModeFromClick = (state, clickMode) => {
+  const cur = (state.viewer && state.viewer.drawing && state.viewer.drawing.mode) || 'none'
+  if (!clickMode || clickMode === 'none') {
+    return reducers.setDrawingMode(state, 'none')
+  }
+  if (clickMode === 'node' || clickMode === 'element') {
+    const next = clickMode === cur ? 'none' : clickMode
+    return reducers.setDrawingMode(state, next)
+  }
+  return reducers.setDrawingMode(state, 'none')
 }
 
 const actions = ({ sources }) => {
@@ -234,12 +254,7 @@ const actions = ({ sources }) => {
       .filter((m) => m === 'none' || m === 'node' || m === 'element'),
     sources.dom.select('.example').events('click').map(() => 'none')
   ])
-    .tap(() => {
-      if (typeof document === 'undefined') return
-      const det = document.querySelector('details.toolbar-drawing-wrap')
-      if (det) det.open = false
-    })
-    .thru(withLatestFrom(reducers.setDrawingMode, sources.state))
+    .thru(withLatestFrom(resolveDrawingModeFromClick, sources.state))
     .map((data) => ({ type: 'setDrawingMode', state: data, sink: 'state' }))
 
   const toggleDrawSnap$ = most.mergeArray([

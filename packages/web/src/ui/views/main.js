@@ -1,6 +1,6 @@
 const html = require('nanohtml')
 
-const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, structureCallbacktoStream) => {
+const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, structureCallbacktoStream, viewerUiCallbacktoStream) => {
   const i18nFake = (x) => x
   i18nFake.translate = (x) => x
   i18n = i18n || i18nFake
@@ -13,7 +13,8 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, struct
   const editor = require('./editor').editorWrapper(state, editorCallbackToStream, i18n)
   const toolBar = require('./toolbar')(state, i18n)
 
-  const viewer = require('./viewer')(state, i18n, structureCallbacktoStream)
+  const viewer = require('./viewer')(state, i18n, structureCallbacktoStream, viewerUiCallbacktoStream)
+  const selectionPropertiesPanel = require('./selectionPropertiesPanel')(state, i18n, structureCallbacktoStream, viewerUiCallbacktoStream)
 
   if (state.themes && state.themes.themeSettings) {
     // set the global CSS variables (theme)
@@ -33,9 +34,12 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, struct
     ${status}
 
     <!--Viewer + screen-space truss overlay-->
-    <div id="viewerStack">
-      ${viewer}
-      <svg id="trussOverlay" xmlns="http://www.w3.org/2000/svg" class="truss-overlay" aria-hidden="true"></svg>
+    <div id="viewerStack" class="viewer-stack">
+      <div class="viewer-stack__canvas-col">
+        ${viewer}
+        <svg id="trussOverlay" xmlns="http://www.w3.org/2000/svg" class="truss-overlay" aria-hidden="true"></svg>
+      </div>
+      ${selectionPropertiesPanel}
     </div>
 
     <!--Params-->

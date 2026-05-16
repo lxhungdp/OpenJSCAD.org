@@ -4,6 +4,7 @@
  */
 import '../css/demo.css'
 import '../css/structures-dock.css'
+import '../css/selection-properties.css'
 import '../css/codemirror.css'
 
 import makeJscad from './index.js'

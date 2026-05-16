@@ -11,7 +11,7 @@
     "build:min": "browserify src/index.js -o dist/jscad-web.min.js -g uglifyify --standalone jscadWeb && node scripts/write-bundle-stamp.js",
     "dev": "vite",
     "dev:open": "vite --open",
-    "dev:budo": "budo demo.js --port=8081 --css ./css/demo.css --css ./css/structures-dock.css --live -- -b",
+    "dev:budo": "budo demo.js --port=8081 --css ./css/demo.css --css ./css/structures-dock.css --css ./css/selection-properties.css --live -- -b",
     "preview": "vite preview",
     "build:site": "vite build",
     "postinstall": "node postInstall.js",

@@ -14,10 +14,13 @@ const syncTrussOverlay = require('./trussOverlaySync')
 const structureMembersToSolids = require('../../core/structureMembersToSolids')
 const structureReducers = require('../flow/structureReducers')
 const { worldPointOnPlaneFromClient, resolvePlacement } = require('../draw/planePointer')
+const { pickByMarquee } = require('../selection/screenMarqueeHits')
 
 // params
 const rotateSpeed = 0.002
 const panSpeed = 1
+/** Scale drag delta when panning with primary button / one finger in 2D (ortho) views — lower = slower. */
+const panPrimary2dScale = 0.28
 const zoomSpeed = 0.08
 
 /**
@@ -194,14 +197,18 @@ let lastAutoZoomBBoxKey = null
 let lastAppliedThemeRenderingKey = ''
 let latestAppState = null
 let structureInteractionCallback = null
+let viewerUiInteractionCallback = null
 let drawOverlayPreview = null
 let elementChainAnchorId = null
 let lastPointerClient = { x: 0, y: 0 }
+/** Screen-space marquee while dragging (canvas CSS px). */
+let marqueeDraft = null
+let marqueeDragging = false
 
 /** One canvas for the app lifetime: each `viewer()` render used to mint a new `<canvas>`, morphdom swapped it out, and regl kept rendering a detached context → blank white viewport. */
 let persistentViewerCanvas = null
 
-const viewer = (state, i18n, structureCtl) => {
+const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
   if (!persistentViewerCanvas) {
     persistentViewerCanvas = html`<canvas id='renderTarget'> </canvas>`
   }
@@ -210,6 +217,9 @@ const viewer = (state, i18n, structureCtl) => {
   latestStructureState = structureReducers.ensure(state)
   if (structureCtl && typeof structureCtl.callback === 'function') {
     structureInteractionCallback = structureCtl.callback
+  }
+  if (viewerUiCtl && typeof viewerUiCtl.callback === 'function') {
+    viewerUiInteractionCallback = viewerUiCtl.callback
   }
 
   if (!render) {
@@ -238,9 +248,18 @@ const viewer = (state, i18n, structureCtl) => {
         const ev = data.originalEvents[0]
         const { x, y } = data.delta
         const drawMode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
+        const selMode = (latestAppState && latestAppState.viewer && latestAppState.viewer.selection && latestAppState.viewer.selection.mode) || 'none'
+        if (marqueeDragging) return
+        const viewMode = (latestAppState && latestAppState.viewer && latestAppState.viewer.camera && latestAppState.viewer.camera.viewMode) || '3d'
+        const viewIs3d = viewMode === '3d'
         const middlePan = data.type === 'mouse' && (ev.buttons & 4) !== 0
         const touchPan = Boolean(ev.touches && ev.touches.length > 2)
         const shiftLeftPan = data.type === 'mouse' && ev.shiftKey === true && (ev.buttons & 1) !== 0
+        const leftPan2d =
+          !viewIs3d &&
+          selMode !== 'select' &&
+          ((data.type === 'mouse' && (ev.buttons & 1) !== 0) ||
+            (data.type === 'touch' && ev.touches && ev.touches.length === 1))
         if (drawMode && drawMode !== 'none') {
           if (middlePan || touchPan || shiftLeftPan) {
             panDelta[0] += x
@@ -248,9 +267,12 @@ const viewer = (state, i18n, structureCtl) => {
           }
           return
         }
-        if (middlePan || touchPan) {
-          panDelta[0] += x
-          panDelta[1] += y
+        if (middlePan || touchPan || leftPan2d) {
+          const sx = (middlePan || touchPan) ? 1 : panPrimary2dScale
+          panDelta[0] += x * sx
+          panDelta[1] += y * sx
+        } else if (selMode === 'select') {
+          /* primary drag reserved for marquee (mouse path); no camera orbit/pan */
         } else {
           rotateDelta[0] -= x
           rotateDelta[1] -= y
@@ -281,11 +303,14 @@ const viewer = (state, i18n, structureCtl) => {
       const raw = worldPointOnPlaneFromClient(clientX, clientY, rect, viewProj, 0)
       if (!raw) return null
       const drawing = st.viewer.drawing || { snapEnabled: true }
+      const mode = drawing.mode
       const gridCfg = st.viewer.grid || {}
       const minorStep =
         (typeof gridCfg.minorStep === 'number' && isFinite(gridCfg.minorStep) && gridCfg.minorStep > 0)
           ? gridCfg.minorStep
           : 1
+      const ignoreNodeIds =
+        mode === 'element' && elementChainAnchorId != null ? [elementChainAnchorId] : undefined
       return resolvePlacement(raw, structureReducers.ensure(st).nodes || [], {
         snapEnabled: drawing.snapEnabled !== false,
         gridMinorStep: minorStep,
@@ -293,7 +318,8 @@ const viewer = (state, i18n, structureCtl) => {
         viewProj,
         rect,
         clientX,
-        clientY
+        clientY,
+        ignoreNodeIds
       })
     }
 
@@ -336,8 +362,6 @@ const viewer = (state, i18n, structureCtl) => {
       if (!mode || mode === 'none') return
       elementChainAnchorId = null
       drawOverlayPreview = null
-      const det = document.querySelector('details.toolbar-drawing-wrap')
-      if (det) det.open = false
       const navBtn = document.querySelector('.drawing-mode-btn[data-drawing-mode="none"]')
       if (navBtn) navBtn.click()
       updateView = true
@@ -359,7 +383,68 @@ const viewer = (state, i18n, structureCtl) => {
       if (e.button === 1) e.preventDefault()
       if (e.button !== 0) return
       const st = latestAppState
-      const mode = st && st.viewer && st.viewer.drawing && st.viewer.drawing.mode
+      const drawM = st && st.viewer && st.viewer.drawing && st.viewer.drawing.mode
+      const selM = st && st.viewer && st.viewer.selection && st.viewer.selection.mode
+
+      if (selM === 'select' && (!drawM || drawM === 'none')) {
+        const rect = el.getBoundingClientRect()
+        const x0 = e.clientX - rect.left
+        const y0 = e.clientY - rect.top
+        marqueeDraft = { x0, y0, x1: x0, y1: y0 }
+        marqueeDragging = true
+        const onMove = (ev) => {
+          if (!marqueeDragging || !marqueeDraft) return
+          const r = el.getBoundingClientRect()
+          marqueeDraft.x1 = ev.clientX - r.left
+          marqueeDraft.y1 = ev.clientY - r.top
+          updateView = true
+        }
+        const onUp = (ev) => {
+          if (!marqueeDragging) return
+          marqueeDragging = false
+          window.removeEventListener('mousemove', onMove)
+          window.removeEventListener('mouseup', onUp)
+          const r = el.getBoundingClientRect()
+          const x1 = ev.clientX - r.left
+          const y1 = ev.clientY - r.top
+          const sx0 = marqueeDraft ? marqueeDraft.x0 : x1
+          const sy0 = marqueeDraft ? marqueeDraft.y0 : y1
+          marqueeDraft = null
+          const viewProj = mat4.create()
+          mat4.multiply(viewProj, camera.projection, camera.view)
+          const cssW = r.width
+          const cssH = r.height
+          const struct = structureReducers.ensure(latestAppState)
+          const windowMode = x1 >= sx0
+          const hitMode = windowMode ? 'window' : 'crossing'
+          const hits = pickByMarquee({
+            structure: struct,
+            viewProj,
+            cssW,
+            cssH,
+            projectWorld,
+            x0: sx0,
+            y0: sy0,
+            x1,
+            y1,
+            mode: hitMode
+          })
+          if (viewerUiInteractionCallback) {
+            viewerUiInteractionCallback({
+              op: 'setSelection',
+              selectedNodeIds: hits.selectedNodeIds,
+              selectedElementIds: hits.selectedElementIds
+            })
+          }
+          updateView = true
+        }
+        window.addEventListener('mousemove', onMove)
+        window.addEventListener('mouseup', onUp)
+        updateView = true
+        return
+      }
+
+      const mode = drawM
       if (!mode || mode === 'none') return
       if (e.shiftKey) return
       const cb = structureInteractionCallback
@@ -392,16 +477,24 @@ const viewer = (state, i18n, structureCtl) => {
         return
       }
 
-      let endId
       if (pl.kind === 'node') {
-        endId = pl.nodeId
+        const endId = pl.nodeId
+        if (String(endId) === String(elementChainAnchorId)) return
+        cb({ op: 'addElement', payload: { iNode: elementChainAnchorId, jNode: endId } })
+        elementChainAnchorId = endId
       } else {
-        endId = structureReducers.ensure(st).nextNodeId || 1
-        cb({ op: 'addNodeAt', payload: { x: pl.x, y: pl.y, z: 0 } })
+        const newId = structureReducers.ensure(st).nextNodeId || 1
+        cb({
+          op: 'addElementToNewNodeAt',
+          payload: {
+            x: pl.x,
+            y: pl.y,
+            z: pl.z != null ? pl.z : 0,
+            iNode: elementChainAnchorId
+          }
+        })
+        elementChainAnchorId = newId
       }
-      if (endId === elementChainAnchorId) return
-      cb({ op: 'addElement', payload: { iNode: elementChainAnchorId, jNode: endId } })
-      elementChainAnchorId = endId
       setTimeout(() => {
         updatePreviewFromPointer(e.clientX, e.clientY)
         updateView = true
@@ -417,6 +510,16 @@ const viewer = (state, i18n, structureCtl) => {
 
     window.addEventListener('keydown', (e) => {
       if (e.key !== 'Escape') return
+      const sel = latestAppState && latestAppState.viewer && latestAppState.viewer.selection
+      if (sel && sel.mode === 'select') {
+        e.preventDefault()
+        marqueeDragging = false
+        marqueeDraft = null
+        if (viewerUiInteractionCallback) {
+          viewerUiInteractionCallback({ op: 'setSelectionMode', mode: 'none' })
+        }
+        updateView = true
+      }
       const mode = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing && latestAppState.viewer.drawing.mode
       if (mode && mode !== 'none') {
         e.preventDefault()
@@ -484,6 +587,7 @@ const viewer = (state, i18n, structureCtl) => {
       const svg = stack && stack.querySelector('#trussOverlay')
       if (svg) {
         const draw = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing
+        const selection = (latestAppState && latestAppState.viewer && latestAppState.viewer.selection) || {}
         syncTrussOverlay(svg, latestStructureState, camera, el, drawOverlayPreview, {
           showNodeIds: !!(draw && draw.showNodeIds),
           showElementIds: !!(draw && draw.showElementIds),
@@ -491,13 +595,20 @@ const viewer = (state, i18n, structureCtl) => {
           showMatId: !!(draw && draw.showMatId),
           showRestraints: !draw || draw.showRestraints !== false,
           showReleased: !draw || draw.showReleased !== false
+        }, {
+          marquee: marqueeDragging && marqueeDraft ? Object.assign({}, marqueeDraft) : null,
+          selectedNodeIds: selection.selectedNodeIds || [],
+          selectedElementIds: selection.selectedElementIds || []
         })
       }
       if (stack) {
+        const selModeC = (latestAppState && latestAppState.viewer && latestAppState.viewer.selection && latestAppState.viewer.selection.mode) || 'none'
         const cursorDrawing = drawMode && drawMode !== 'none' ? 'default' : ''
-        el.style.cursor = cursorDrawing
-        stack.style.cursor = cursorDrawing
-        if (svg) svg.style.cursor = cursorDrawing
+        const cursorSel = selModeC === 'select' ? 'crosshair' : ''
+        const cursorDrawingResolved = cursorDrawing || cursorSel || ''
+        el.style.cursor = cursorDrawingResolved
+        stack.style.cursor = cursorDrawingResolved
+        if (svg) svg.style.cursor = cursorDrawingResolved
       }
 
       window.requestAnimationFrame(updateAndRender)

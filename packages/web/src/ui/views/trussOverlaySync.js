@@ -1,5 +1,10 @@
 const mat4 = require('gl-mat4')
 
+/** Epsilon outside NDC Z = ±1 before discarding (ortho top view often sits on clip plane). */
+const PROJ_Z_REJECT_EPS = 0.02
+/** Clamp NDC XY so lines near frustum edge still draw (strict reject caused missing members). */
+const PROJ_XY_CLAMP = 1.12
+
 /**
  * Project world point to CSS pixel coordinates relative to the canvas element.
  * @returns {number[]|null} [px, py, ndcz] or null if behind camera / invalid
@@ -13,11 +18,14 @@ function projectWorld (x, y, z, viewProj, cssW, cssH) {
   const ndcx = ax / aw
   const ndcy = ay / aw
   const ndcz = az / aw
-  if (ndcz < -1 || ndcz > 1) return null
-  if (ndcx < -1.05 || ndcx > 1.05 || ndcy < -1.05 || ndcy > 1.05) return null
-  const px = (ndcx * 0.5 + 0.5) * cssW
-  const py = (1 - (ndcy * 0.5 + 0.5)) * cssH
-  return [px, py, ndcz]
+  if (!isFinite(ndcx) || !isFinite(ndcy) || !isFinite(ndcz)) return null
+  if (ndcz < -1 - PROJ_Z_REJECT_EPS || ndcz > 1 + PROJ_Z_REJECT_EPS) return null
+  const ndczClamped = Math.max(-1, Math.min(1, ndcz))
+  const ndcxClamped = Math.max(-PROJ_XY_CLAMP, Math.min(PROJ_XY_CLAMP, ndcx))
+  const ndcyClamped = Math.max(-PROJ_XY_CLAMP, Math.min(PROJ_XY_CLAMP, ndcy))
+  const px = (ndcxClamped * 0.5 + 0.5) * cssW
+  const py = (1 - (ndcyClamped * 0.5 + 0.5)) * cssH
+  return [px, py, ndczClamped]
 }
 
 /** Screen-space label: fixed px size, horizontal, constant offset from anchor in px. */
@@ -68,8 +76,9 @@ function appendScreenLabel (parent, textStr, x, y, textAnchor, style) {
  * @param {HTMLCanvasElement} canvasEl
  * @param {TrussOverlayPreview|null} [preview]
  * @param {TrussOverlayLabelOpts} [labelOpts]
+ * @param {{ marquee?: { x0:number,y0:number,x1:number,y1:number }|null, selectedNodeIds?: number[], selectedElementIds?: number[] }} [selectionOpts]
  */
-function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
+function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, selectionOpts) {
   if (!svgEl || !truss || !camera || !camera.view || !camera.projection || !canvasEl) return
 
   const showNodeIds = !!(labelOpts && labelOpts.showNodeIds)
@@ -78,6 +87,9 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
   const showMatId = !!(labelOpts && labelOpts.showMatId)
   const showRestraints = labelOpts && labelOpts.showRestraints === false ? false : true
   const showReleased = labelOpts && labelOpts.showReleased === false ? false : true
+
+  const selNodeSet = new Set((selectionOpts && selectionOpts.selectedNodeIds) || [])
+  const selElemSet = new Set((selectionOpts && selectionOpts.selectedElementIds) || [])
 
   if (truss.show3dMembers) {
     while (svgEl.firstChild) svgEl.removeChild(svgEl.firstChild)
@@ -119,15 +131,17 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
     const pa = projectWorld(a.x, a.y, a.z, viewProj, cssW, cssH)
     const pb = projectWorld(b.x, b.y, b.z, viewProj, cssW, cssH)
     if (!pa || !pb) return
+    const isSel = selElemSet.has(Number(el.id))
     const line = document.createElementNS('http://www.w3.org/2000/svg', 'line')
     line.setAttribute('x1', String(pa[0]))
     line.setAttribute('y1', String(pa[1]))
     line.setAttribute('x2', String(pb[0]))
     line.setAttribute('y2', String(pb[1]))
-    line.setAttribute('stroke', stroke)
-    line.setAttribute('stroke-width', '1')
+    line.setAttribute('stroke', isSel ? 'rgba(198, 40, 40, 0.98)' : stroke)
+    line.setAttribute('stroke-width', isSel ? '2.75' : '1.5')
+    line.setAttribute('stroke-linecap', 'round')
     line.setAttribute('vector-effect', 'non-scaling-stroke')
-    line.setAttribute('shape-rendering', 'crispEdges')
+    line.setAttribute('shape-rendering', 'geometricPrecision')
     g.appendChild(line)
   })
 
@@ -187,6 +201,7 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
   truss.nodes.forEach((n) => {
     const p = projectWorld(n.x, n.y, n.z, viewProj, cssW, cssH)
     if (!p) return
+    const isSel = selNodeSet.has(Number(n.id))
     const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle')
     c.setAttribute('cx', String(p[0]))
     c.setAttribute('cy', String(p[1]))
@@ -198,6 +213,11 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
     if (preview && preview.highlightNodeId === n.id) {
       c.setAttribute('r', '3.5')
       c.setAttribute('stroke', 'rgba(255, 193, 7, 0.95)')
+      c.setAttribute('stroke-width', '2')
+    } else if (isSel) {
+      c.setAttribute('r', '4.25')
+      c.setAttribute('fill', 'rgba(198, 40, 40, 0.95)')
+      c.setAttribute('stroke', 'rgba(255,255,255,0.95)')
       c.setAttribute('stroke-width', '2')
     }
     g.appendChild(c)
@@ -267,6 +287,25 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts) {
       dot.setAttribute('vector-effect', 'non-scaling-stroke')
       g.appendChild(dot)
     }
+  }
+
+  if (selectionOpts && selectionOpts.marquee) {
+    const m = selectionOpts.marquee
+    const rx = Math.min(m.x0, m.x1)
+    const ry = Math.min(m.y0, m.y1)
+    const rw = Math.max(Math.abs(m.x1 - m.x0), 1)
+    const rh = Math.max(Math.abs(m.y1 - m.y0), 1)
+    const mr = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
+    mr.setAttribute('x', String(rx))
+    mr.setAttribute('y', String(ry))
+    mr.setAttribute('width', String(rw))
+    mr.setAttribute('height', String(rh))
+    mr.setAttribute('fill', 'rgba(33, 150, 243, 0.12)')
+    mr.setAttribute('stroke', 'rgba(33, 150, 243, 0.75)')
+    mr.setAttribute('stroke-width', '1')
+    mr.setAttribute('vector-effect', 'non-scaling-stroke')
+    mr.setAttribute('pointer-events', 'none')
+    g.appendChild(mr)
   }
 }
 

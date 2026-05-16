@@ -10,6 +10,8 @@ const reduceStructureOp = (state, op) => {
       return reducers.addNodeAt(state, op.payload)
     case 'addElement':
       return reducers.addElement(state, op.payload)
+    case 'addElementToNewNodeAt':
+      return reducers.addElementToNewNodeAt(state, op.payload)
     case 'removeNode':
       return reducers.removeNode(state, op.nodeId)
     case 'removeElement':

@@ -135,6 +135,17 @@ const addElement = (state, payload) => {
   })
 }
 
+/** One atomic update: add node at (x,y,z) then element from iNode to that new node (fixes two cb() racing same base state). */
+const addElementToNewNodeAt = (state, { x, y, z, iNode }) => {
+  const s = ensure(state)
+  const from = Number(iNode)
+  if (!isFinite(from)) return state
+  const jNode = s.nextNodeId
+  if (from === jNode) return state
+  const afterNode = addNodeAt(state, { x, y, z })
+  return addElement(afterNode, { iNode: from, jNode })
+}
+
 const removeElement = (state, elementId) => {
   const s = ensure(state)
   const id = Number(elementId)
@@ -457,6 +468,7 @@ module.exports = {
   removeNode,
   updateNode,
   addElement,
+  addElementToNewNodeAt,
   removeElement,
   updateElement,
   addMaterial,

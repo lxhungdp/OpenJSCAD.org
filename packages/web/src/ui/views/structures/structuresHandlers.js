@@ -229,11 +229,14 @@ const attachHandlers = (root, ctl) => {
       const tr = ev.target.closest('tr')
       if (!tr) return
       const elementId = Number(tr.getAttribute('data-element-id'))
+      const releaseId = Number(tr.getAttribute('data-release-id'))
       const end = tr.querySelector('[data-k="end"]')
-      cb({
-        op: 'addRelease',
-        payload: { elementId, end: end && end.value }
-      })
+      const endVal = end && end.value
+      if (endVal === 'none') {
+        if (isFinite(releaseId)) cb({ op: 'removeRelease', id: releaseId })
+      } else if (endVal === 'start' || endVal === 'end' || endVal === 'both') {
+        cb({ op: 'addRelease', payload: { elementId, end: endVal } })
+      }
     }
   })
 

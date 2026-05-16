@@ -33,13 +33,15 @@ const dom = (state, i18n, paramsCallbacktoStream, editorCallbackToStream, struct
     <!--Status information/errors-->
     ${status}
 
-    <!--Viewer + screen-space truss overlay-->
-    <div id="viewerStack" class="viewer-stack">
-      <div class="viewer-stack__canvas-col">
+    <!-- Viewer + compact selection properties (right rail) -->
+    <div class="view-area">
+      <div id="viewerStack" class="viewer-stack">
         ${viewer}
         <svg id="trussOverlay" xmlns="http://www.w3.org/2000/svg" class="truss-overlay" aria-hidden="true"></svg>
       </div>
-      ${selectionPropertiesPanel}
+      <aside class="selection-props-rail" aria-label="${i18n`Selection properties`}">
+        ${selectionPropertiesPanel}
+      </aside>
     </div>
 
     <!--Params-->

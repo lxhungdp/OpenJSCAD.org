@@ -466,7 +466,9 @@ const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
         if (pl.kind === 'node') {
           elementChainAnchorId = pl.nodeId
         } else {
-          const nid = structureReducers.ensure(st).nextNodeId || 1
+          const nid = structureReducers.generateId(
+            structureReducers.ensure(st).nodes.map((n) => n.id)
+          )
           cb({ op: 'addNodeAt', payload: { x: pl.x, y: pl.y, z: 0 } })
           elementChainAnchorId = nid
         }
@@ -483,7 +485,9 @@ const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
         cb({ op: 'addElement', payload: { iNode: elementChainAnchorId, jNode: endId } })
         elementChainAnchorId = endId
       } else {
-        const newId = structureReducers.ensure(st).nextNodeId || 1
+        const newId = structureReducers.generateId(
+          structureReducers.ensure(st).nodes.map((n) => n.id)
+        )
         cb({
           op: 'addElementToNewNodeAt',
           payload: {
@@ -585,7 +589,8 @@ const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
 
       const stack = el.parentElement
       const svg = stack && stack.querySelector('#trussOverlay')
-      if (svg) {
+      if (svg && latestAppState) {
+        latestStructureState = structureReducers.ensure(latestAppState)
         const draw = latestAppState && latestAppState.viewer && latestAppState.viewer.drawing
         const selection = (latestAppState && latestAppState.viewer && latestAppState.viewer.selection) || {}
         syncTrussOverlay(svg, latestStructureState, camera, el, drawOverlayPreview, {

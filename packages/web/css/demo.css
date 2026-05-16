@@ -496,25 +496,44 @@ span#paramsControls {
   width: 100%;
 }
 
-#viewerStack.viewer-stack {
+/* Viewer + floating selection panel (top-right stack, below toolbar) */
+.view-area {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
   display: flex;
   flex-direction: row;
   align-items: stretch;
+  z-index: 0;
 }
 
-.viewer-stack__canvas-col {
+.selection-props-rail {
+  flex: 0 0 auto;
+  min-width: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  align-self: flex-start;
+  /* Toolbar: ~top 5px + ~34px control height — sit clearly below */
+  margin-top: 48px;
+  margin-right: 10px;
+  margin-bottom: 12px;
+  pointer-events: none;
+}
+
+.selection-props-rail > .selection-props {
+  pointer-events: auto;
+}
+
+#viewerStack.viewer-stack {
   position: relative;
   flex: 1;
-  min-width: 0;
   min-height: 0;
+  min-width: 0;
+  z-index: 0;
 }
 
 svg.truss-overlay {

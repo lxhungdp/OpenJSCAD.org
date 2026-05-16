@@ -137,8 +137,8 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
     line.setAttribute('y1', String(pa[1]))
     line.setAttribute('x2', String(pb[0]))
     line.setAttribute('y2', String(pb[1]))
-    line.setAttribute('stroke', isSel ? 'rgba(198, 40, 40, 0.98)' : stroke)
-    line.setAttribute('stroke-width', isSel ? '2.75' : '1.5')
+    line.setAttribute('stroke', isSel ? 'rgba(255, 193, 7, 0.98)' : stroke)
+    line.setAttribute('stroke-width', isSel ? '3' : '1.5')
     line.setAttribute('stroke-linecap', 'round')
     line.setAttribute('vector-effect', 'non-scaling-stroke')
     line.setAttribute('shape-rendering', 'geometricPrecision')
@@ -216,8 +216,8 @@ function syncTrussOverlay (svgEl, truss, camera, canvasEl, preview, labelOpts, s
       c.setAttribute('stroke-width', '2')
     } else if (isSel) {
       c.setAttribute('r', '4.25')
-      c.setAttribute('fill', 'rgba(198, 40, 40, 0.95)')
-      c.setAttribute('stroke', 'rgba(255,255,255,0.95)')
+      c.setAttribute('fill', 'rgba(255, 241, 118, 0.98)')
+      c.setAttribute('stroke', 'rgba(245, 127, 23, 0.95)')
       c.setAttribute('stroke-width', '2')
     }
     g.appendChild(c)

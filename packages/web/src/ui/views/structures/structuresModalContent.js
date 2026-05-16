@@ -112,11 +112,12 @@ const buildBoundariesBody = (s, i18n) => {
     </tr>`
   })
   const releaseRows = s.releases.map((r) => html`
-    <tr data-element-id="${r.elementId}">
+    <tr data-element-id="${r.elementId}" data-release-id="${r.id}">
       <td>${r.id}</td>
       <td>${r.elementId}</td>
       <td>
         <select class="struct-release-in structures-modal-field structures-modal-select" data-k="end">
+          <option value="none">None</option>
           <option value="start" selected=${r.end === 'start'}>start</option>
           <option value="end" selected=${r.end === 'end'}>end</option>
           <option value="both" selected=${r.end === 'both'}>both</option>

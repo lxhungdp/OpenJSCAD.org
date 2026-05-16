@@ -18,4 +18,36 @@ const formatIdRanges = (ids) => {
   return parts.join(' ')
 }
 
-module.exports = { formatIdRanges }
+/**
+ * Parse "1 3 5-10" into sorted unique positive integers (invalid tokens skipped).
+ * @param {string} str
+ * @returns {number[]}
+ */
+const parseIdsFromRangeString = (str) => {
+  const raw = String(str || '').trim()
+  if (!raw) return []
+  const tokens = raw.split(/\s+/).filter(Boolean)
+  const out = new Set()
+  for (const tok of tokens) {
+    const range = /^(\d+)\s*-\s*(\d+)$/.exec(tok)
+    if (range) {
+      let a = Number(range[1])
+      let b = Number(range[2])
+      if (!isFinite(a) || !isFinite(b)) continue
+      if (a > b) {
+        const t = a
+        a = b
+        b = t
+      }
+      for (let k = a; k <= b; k++) out.add(k)
+      continue
+    }
+    if (/^\d+$/.test(tok)) {
+      const n = Number(tok)
+      if (isFinite(n)) out.add(n)
+    }
+  }
+  return [...out].sort((x, y) => x - y)
+}
+
+module.exports = { formatIdRanges, parseIdsFromRangeString }

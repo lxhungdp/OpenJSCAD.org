@@ -3,6 +3,7 @@ const reducers = require('./structureReducers')
 
 const reduceStructureOp = (state, op) => {
   if (!op || !op.op) return undefined
+  const debug = typeof window !== 'undefined' && window.__SEL_PROPS_DEBUG
   switch (op.op) {
     case 'addNode':
       return reducers.addNode(state)
@@ -14,10 +15,34 @@ const reduceStructureOp = (state, op) => {
       return reducers.addElementToNewNodeAt(state, op.payload)
     case 'removeNode':
       return reducers.removeNode(state, op.nodeId)
+    case 'removeNodesBatch':
+      return reducers.removeNodesBatch(state, op.payload)
     case 'removeElement':
       return reducers.removeElement(state, op.elementId)
-    case 'updateNode':
-      return reducers.updateNode(state, op.payload)
+    case 'removeElementsBatch':
+      return reducers.removeElementsBatch(state, op.payload)
+    case 'updateNode': {
+      const next = reducers.updateNode(state, op.payload)
+      if (debug) {
+        const nid = op.payload && op.payload.id
+        const before = (state.structure && state.structure.nodes || []).find((n) => Number(n.id) === Number(nid))
+        const after = (next.structure && next.structure.nodes || []).find((n) => Number(n.id) === Number(nid))
+        console.log('[structure flow] updateNode', {
+          payload: op.payload,
+          before: before ? { x: before.x, y: before.y, z: before.z } : null,
+          after: after ? { x: after.x, y: after.y, z: after.z } : null,
+          stateUnchanged: next === state
+        })
+      }
+      if (next === state) {
+        console.warn('[structure flow] updateNode had no effect — id mismatch?', op.payload, {
+          nodeIdsInModel: (state.structure && state.structure.nodes || []).map((n) => n.id)
+        })
+      }
+      return next
+    }
+    case 'updateNodesBatch':
+      return reducers.updateNodesBatch(state, op.payload)
     case 'updateElement':
       return reducers.updateElement(state, op.payload)
     case 'addMaterial':
@@ -66,6 +91,12 @@ const reduceStructureOp = (state, op) => {
       return reducers.setPropertiesTab(state, op.tab)
     case 'replaceStructure':
       return reducers.replaceStructure(state, op.structure)
+    case 'applySelectionPanel':
+      return reducers.applySelectionPanel(state, op.payload)
+    case 'spacingPatternFromAnchors':
+      return reducers.spacingPatternFromAnchors(state, op.payload)
+    case 'spacingPatternFromElements':
+      return reducers.spacingPatternFromElements(state, op.payload)
     case 'runFemAnalysis':
       return reducers.runFemAnalysis(state)
     default:
@@ -77,7 +108,12 @@ const actions = ({ sources }) => {
   const structureInteraction = sources.structureInteraction || sources.trussInteraction
   const structureCommand$ = structureInteraction
     .thru(withLatestFrom((state, op) => reduceStructureOp(state, op), sources.state))
-    .filter((data) => data !== undefined)
+    .filter((data) => {
+      if (data === undefined && typeof window !== 'undefined' && window.__SEL_PROPS_DEBUG) {
+        console.warn('[structure flow] op produced undefined (unknown op or no-op)')
+      }
+      return data !== undefined
+    })
     .map((data) => ({ type: 'structureCommand', state: data, sink: 'state' }))
 
   return { structureCommand$ }

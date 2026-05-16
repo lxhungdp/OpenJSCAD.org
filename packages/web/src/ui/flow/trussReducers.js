@@ -1,3 +1,5 @@
+const { generateId } = require('../selection/idAlloc')
+
 const defaultTruss = () => ({
   nodes: [],
   elements: [],
@@ -15,12 +17,8 @@ const defaultTruss = () => ({
 const ensure = (state) => {
   if (!state.truss || typeof state.truss !== 'object') return defaultTruss()
   const t = Object.assign({}, defaultTruss(), state.truss)
-  if (t.nextNodeId == null && t.nodes && t.nodes.length) {
-    t.nextNodeId = Math.max(...t.nodes.map((n) => n.id)) + 1
-  }
-  if (t.nextElementId == null && t.elements && t.elements.length) {
-    t.nextElementId = Math.max(...t.elements.map((e) => e.id)) + 1
-  }
+  t.nextNodeId = generateId(t.nodes.map((n) => n.id))
+  t.nextElementId = generateId(t.elements.map((e) => e.id))
   return t
 }
 
@@ -28,22 +26,24 @@ const withTruss = (state, next) => Object.assign({}, state, { truss: Object.assi
 
 const addNode = (state) => {
   const t = ensure(state)
-  const id = t.nextNodeId
+  const id = generateId(t.nodes.map((n) => n.id))
+  const nodes = t.nodes.concat([{ id, x: 0, y: 0, z: 0 }])
   return withTruss(state, {
-    nodes: t.nodes.concat([{ id, x: 0, y: 0, z: 0 }]),
-    nextNodeId: id + 1
+    nodes,
+    nextNodeId: generateId(nodes.map((n) => n.id))
   })
 }
 
 const addNodeAt = (state, { x, y, z }) => {
   const t = ensure(state)
-  const id = t.nextNodeId
+  const id = generateId(t.nodes.map((n) => n.id))
   const xi = isFinite(Number(x)) ? Number(x) : 0
   const yi = isFinite(Number(y)) ? Number(y) : 0
   const zi = isFinite(Number(z)) ? Number(z) : 0
+  const nodes = t.nodes.concat([{ id, x: xi, y: yi, z: zi }])
   return withTruss(state, {
-    nodes: t.nodes.concat([{ id, x: xi, y: yi, z: zi }]),
-    nextNodeId: id + 1
+    nodes,
+    nextNodeId: generateId(nodes.map((n) => n.id))
   })
 }
 
@@ -79,10 +79,14 @@ const addElement = (state, payload) => {
     endId = t.nodes[1] ? t.nodes[1].id : startId
   }
   if (startId === endId) return state
-  const id = t.nextElementId
+  const elements = t.elements.concat([{
+    id: generateId(t.elements.map((e) => e.id)),
+    startId,
+    endId
+  }])
   return withTruss(state, {
-    elements: t.elements.concat([{ id, startId, endId }]),
-    nextElementId: id + 1
+    elements,
+    nextElementId: generateId(elements.map((e) => e.id))
   })
 }
 

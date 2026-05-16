@@ -91,6 +91,10 @@ const reduceStructureOp = (state, op) => {
       return reducers.setPropertiesTab(state, op.tab)
     case 'replaceStructure':
       return reducers.replaceStructure(state, op.structure)
+    case 'importStructure':
+      return reducers.importStructure(state, op.structure)
+    case 'clearStructure':
+      return reducers.clearStructure(state)
     case 'applySelectionPanel':
       return reducers.applySelectionPanel(state, op.payload)
     case 'spacingPatternFromAnchors':

@@ -46,6 +46,24 @@ const structuresPanel = (state, i18n, structureCallbacktoStream) => {
       <nav class="structures-menu-list" role="menu" aria-label="Structures">
         ${menuItems}
       </nav>
+      <div class="structures-menu-file" aria-label="Model file">
+        <button type="button" class="structures-menu-item structures-menu-item--file" data-struct-export>
+          <span class="structures-menu-item__label">${i18n`Export JSON`}</span>
+        </button>
+        <button type="button" class="structures-menu-item structures-menu-item--file" data-struct-import>
+          <span class="structures-menu-item__label">${i18n`Import JSON`}</span>
+        </button>
+        <button type="button" class="structures-menu-item structures-menu-item--file structures-menu-item--danger" data-struct-clear-all>
+          <span class="structures-menu-item__label">${i18n`Clear all`}</span>
+        </button>
+        <div class="structures-clear-confirm" data-struct-clear-panel hidden>
+          <p class="structures-clear-confirm__text">${i18n`Clear entire model? This cannot be undone.`}</p>
+          <div class="structures-clear-confirm__actions">
+            <button type="button" class="structures-clear-confirm__btn structures-clear-confirm__btn--danger" data-struct-clear-confirm>${i18n`Confirm`}</button>
+            <button type="button" class="structures-clear-confirm__btn" data-struct-clear-cancel>${i18n`Cancel`}</button>
+          </div>
+        </div>
+      </div>
     </section>`
 
   attachHandlers(panel, structureCallbacktoStream)

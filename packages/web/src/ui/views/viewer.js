@@ -215,6 +215,9 @@ const viewer = (state, i18n, structureCtl, viewerUiCtl) => {
   const el = persistentViewerCanvas
   latestAppState = state
   latestStructureState = structureReducers.ensure(state)
+  try {
+    require('../structure/structureLiveAccess').registerAppStateForExport(state)
+  } catch (_) { /* optional during tests */ }
   if (structureCtl && typeof structureCtl.callback === 'function') {
     structureInteractionCallback = structureCtl.callback
   }

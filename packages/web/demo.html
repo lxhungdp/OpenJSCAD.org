@@ -55,10 +55,6 @@
           s.onload = function () {
             var el1 = document.getElementById('jscad')
             if (window.jscadWeb && el1) window.jscadWeb(el1, { name: 'jscad1' })
-            window.addEventListener('beforeunload', function (event) {
-              event.preventDefault()
-              event.returnValue = ''
-            })
           }
           s.src = withV('./dist/jscad-web.min.js', v)
           document.body.appendChild(s)

@@ -1,8 +1,69 @@
 const DOF_LABELS = ['ux', 'uy', 'uz', 'rx', 'ry', 'rz']
+const { downloadStructureJson, pickStructureJsonFile } = require('./structureFileActions')
+const { getLiveStructure } = require('../../structure/structureLiveAccess')
 
 const attachHandlers = (root, ctl) => {
   if (!root || !ctl || typeof ctl.callback !== 'function') return
   const cb = ctl.callback
+
+  const exportBtn = root.querySelector('[data-struct-export]')
+  if (exportBtn) {
+    exportBtn.onclick = (e) => {
+      e.preventDefault()
+      downloadStructureJson(getLiveStructure())
+    }
+  }
+
+  const importBtn = root.querySelector('[data-struct-import]')
+  if (importBtn) {
+    importBtn.onclick = (e) => {
+      e.preventDefault()
+      pickStructureJsonFile((result) => {
+        if (!result.ok) {
+          if (result.error && result.error !== 'No file selected') {
+            window.alert(result.error)
+          }
+          return
+        }
+        cb({ op: 'importStructure', structure: result.structure })
+      })
+    }
+  }
+
+  const clearPanel = root.querySelector('[data-struct-clear-panel]')
+  const clearAllBtn = root.querySelector('[data-struct-clear-all]')
+  const clearConfirmBtn = root.querySelector('[data-struct-clear-confirm]')
+  const clearCancelBtn = root.querySelector('[data-struct-clear-cancel]')
+
+  const setClearConfirmVisible = (show) => {
+    if (!clearPanel) return
+    if (show) {
+      clearPanel.removeAttribute('hidden')
+    } else {
+      clearPanel.setAttribute('hidden', '')
+    }
+    if (clearAllBtn) clearAllBtn.hidden = !!show
+  }
+
+  if (clearAllBtn) {
+    clearAllBtn.onclick = (e) => {
+      e.preventDefault()
+      setClearConfirmVisible(true)
+    }
+  }
+  if (clearCancelBtn) {
+    clearCancelBtn.onclick = (e) => {
+      e.preventDefault()
+      setClearConfirmVisible(false)
+    }
+  }
+  if (clearConfirmBtn) {
+    clearConfirmBtn.onclick = (e) => {
+      e.preventDefault()
+      setClearConfirmVisible(false)
+      cb({ op: 'clearStructure' })
+    }
+  }
 
   root.querySelectorAll('[data-struct-op]').forEach((btn) => {
     btn.onclick = (e) => {

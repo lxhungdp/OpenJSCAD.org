@@ -37,8 +37,3 @@ rootEl.appendChild(el1)
     showBootError(err)
   }
 })()
-
-window.addEventListener('beforeunload', (event) => {
-  event.preventDefault()
-  event.returnValue = ''
-})

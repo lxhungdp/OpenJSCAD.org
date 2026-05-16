@@ -19,12 +19,14 @@ const makeActions = (sources) => {
   const designActions = require('./design')({ sources })
 
   const structureActions = require('./structure')({ sources })
+  const structurePersistenceActions = require('./structurePersistence')({ sources })
   const viewerSelectionActions = require('./viewerSelectionFlow')({ sources })
 
   const actions = [
     errorActions,
     designActions,
     structureActions,
+    structurePersistenceActions,
 
     exportActions,
 

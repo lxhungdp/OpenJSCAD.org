@@ -116,6 +116,75 @@ section.structures-menu-panel h3 {
   line-height: 1.2;
 }
 
+.structures-menu-file {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.structures-menu-item--file {
+  padding-left: 10px;
+}
+
+.structures-menu-item--danger .structures-menu-item__label {
+  color: #b91c1c;
+}
+
+.structures-menu-item--danger:hover {
+  background: rgba(185, 28, 28, 0.1);
+}
+
+.structures-clear-confirm {
+  margin-top: 6px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(185, 28, 28, 0.06);
+  border: 1px solid rgba(185, 28, 28, 0.2);
+}
+
+.structures-clear-confirm[hidden] {
+  display: none !important;
+}
+
+.structures-clear-confirm__text {
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #7f1d1d;
+}
+
+.structures-clear-confirm__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.structures-clear-confirm__btn {
+  flex: 1;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  border-radius: 6px;
+  background: #fff;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.structures-clear-confirm__btn--danger {
+  background: #b91c1c;
+  border-color: #991b1b;
+  color: #fff;
+}
+
+.structures-clear-confirm__btn--danger:hover {
+  background: #991b1b;
+}
+
 /* Modal layer (portaled to body) */
 .structures-modal-layer {
   position: relative;

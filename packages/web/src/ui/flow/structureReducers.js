@@ -496,6 +496,34 @@ const setPropertiesTab = (state, tab) => withStructure(state, { propertiesTab: t
 const replaceStructure = (state, structure) =>
   Object.assign({}, state, { structure: Object.assign({}, defaultStructure(), structure) })
 
+const importStructure = (state, structure) => {
+  const next = replaceStructure(state, structure)
+  return Object.assign({}, next, {
+    femResult: null,
+    femCache: null,
+    femRaw: null
+  })
+}
+
+/** Reset model to empty defaults; clear FEM and selection. */
+const clearStructure = (state) => {
+  const next = replaceStructure(state, defaultStructure())
+  const viewer = state.viewer
+    ? Object.assign({}, state.viewer, {
+      selection: Object.assign({}, state.viewer.selection || {}, {
+        selectedNodeIds: [],
+        selectedElementIds: []
+      })
+    })
+    : state.viewer
+  return Object.assign({}, next, {
+    viewer,
+    femResult: null,
+    femCache: null,
+    femRaw: null
+  })
+}
+
 /**
  * One atomic state tick for selection properties Apply (avoids withLatestFrom race
  * when multiple structureCb() fire in the same turn).
@@ -1013,6 +1041,8 @@ module.exports = {
   setBoundariesTab,
   setPropertiesTab,
   replaceStructure,
+  importStructure,
+  clearStructure,
   applySelectionPanel,
   spacingPatternFromAnchors,
   spacingPatternFromElements,
